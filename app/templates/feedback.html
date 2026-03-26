@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback - Process Extractor Pro</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
+                    <rect width="48" height="48" rx="12" fill="#818CF8"/>
+                    <path d="M14 24L20 30L34 16" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <h2>Process Extractor</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/dashboard">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                    Dashboard
+                </a>
+                <a href="/feedback" class="active">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    Feedback
+                </a>
+                <a href="/settings">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V12a2 2 0 0 1 0 4z"/></svg>
+                    Settings
+                </a>
+                <a href="/logout">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    Sign Out
+                </a>
+            </nav>
+            <div class="sidebar-user">
+                <div class="user-info">
+                    <div class="user-avatar">{{ user.full_name[0] }}</div>
+                    <div>
+                        <div class="user-name">{{ user.full_name }}</div>
+                        <div class="user-role">{{ user.role | replace('_',' ') | title }}</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <h1 style="font-size:24px; font-weight:700; margin-bottom:24px;">Feedback Center</h1>
+
+            <!-- Submit General Feedback -->
+            <div class="feedback-form" style="margin-bottom:24px;">
+                <h3 style="margin-bottom:16px;">Submit General Feedback</h3>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select id="fbCategory">
+                            <option value="usability">Usability</option>
+                            <option value="accuracy">Accuracy</option>
+                            <option value="completeness">Completeness</option>
+                            <option value="suggestion">Suggestion</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Rating</label>
+                        <div class="rating-stars" id="ratingStars">
+                            <svg class="star" data-value="1" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                            <svg class="star" data-value="2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                            <svg class="star" data-value="3" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                            <svg class="star" data-value="4" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                            <svg class="star" data-value="5" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Your Feedback</label>
+                    <textarea id="fbComment" placeholder="Share your thoughts, suggestions, or report issues..."></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="submitFeedback()">Submit Feedback</button>
+            </div>
+
+            <!-- All Feedback -->
+            <div class="card">
+                <h3>All Feedback</h3>
+                <div id="feedbackList">
+                    <p style="color:var(--gray-400); text-align:center; padding:20px;">Loading feedback...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+    let currentRating = 0;
+
+    document.querySelectorAll('.star').forEach(star => {
+        star.addEventListener('click', () => {
+            currentRating = parseInt(star.dataset.value);
+            document.querySelectorAll('.star').forEach((s, i) => {
+                s.classList.toggle('active', i < currentRating);
+            });
+        });
+    });
+
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    async function submitFeedback() {
+        const comment = document.getElementById('fbComment').value;
+        if (!comment.trim()) { showToast('Please enter a comment', 'error'); return; }
+        try {
+            const resp = await fetch('/api/reports/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    category: document.getElementById('fbCategory').value,
+                    rating: currentRating || null,
+                    comment: comment,
+                }),
+            });
+            if (resp.ok) {
+                showToast('Feedback submitted!');
+                document.getElementById('fbComment').value = '';
+                currentRating = 0;
+                document.querySelectorAll('.star').forEach(s => s.classList.remove('active'));
+                loadFeedback();
+            }
+        } catch (err) {
+            showToast('Failed to submit', 'error');
+        }
+    }
+
+    async function loadFeedback() {
+        try {
+            const resp = await fetch('/api/reports/feedback/all');
+            const data = await resp.json();
+            if (!data.length) {
+                document.getElementById('feedbackList').innerHTML = '<p style="color:var(--gray-400); text-align:center; padding:20px;">No feedback yet.</p>';
+                return;
+            }
+            let html = '';
+            data.forEach(fb => {
+                const stars = fb.rating ? '&#9733;'.repeat(fb.rating) + '&#9734;'.repeat(5 - fb.rating) : '';
+                html += `
+                    <div class="feedback-item">
+                        <div class="feedback-meta">
+                            <span class="badge badge-info">${fb.category}</span>
+                            ${stars ? `<span style="color:#F59E0B; margin-left:8px;">${stars}</span>` : ''}
+                            <span style="margin-left:8px;">${new Date(fb.created_at).toLocaleString()}</span>
+                            <span class="badge badge-${fb.status === 'implemented' ? 'success' : fb.status === 'reviewed' ? 'warning' : 'info'}" style="margin-left:8px;">${fb.status}</span>
+                        </div>
+                        <div class="feedback-text">${fb.comment}</div>
+                    </div>`;
+            });
+            document.getElementById('feedbackList').innerHTML = html;
+        } catch (err) {
+            document.getElementById('feedbackList').innerHTML = '<p style="color:var(--danger);">Failed to load feedback.</p>';
+        }
+    }
+
+    loadFeedback();
+    </script>
+</body>
+</html>

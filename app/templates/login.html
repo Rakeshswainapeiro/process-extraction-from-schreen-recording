@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process Extractor Pro - Login</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="login-body">
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="logo">
+                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                        <rect width="48" height="48" rx="12" fill="#4F46E5"/>
+                        <path d="M14 24L20 30L34 16" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <h1>Process Extractor Pro</h1>
+                <p>Screen-to-Process Intelligence Platform</p>
+            </div>
+
+            <form id="loginForm" method="POST" action="/login">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required placeholder="Enter your username">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required placeholder="Enter your password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">Sign In</button>
+                <div id="loginError" class="error-msg" style="display:none;"></div>
+            </form>
+
+            <div class="test-accounts">
+                <h3>Test Accounts</h3>
+                <div class="account-cards">
+                    <div class="account-card" onclick="fillLogin('procurement_specialist','Procure@2024')">
+                        <div class="account-icon procurement">P</div>
+                        <div>
+                            <strong>Procurement Specialist</strong>
+                            <span>Sarah Chen</span>
+                        </div>
+                    </div>
+                    <div class="account-card" onclick="fillLogin('hr_specialist','HRSpec@2024')">
+                        <div class="account-icon hr">H</div>
+                        <div>
+                            <strong>HR Specialist</strong>
+                            <span>James Rodriguez</span>
+                        </div>
+                    </div>
+                    <div class="account-card" onclick="fillLogin('project_manager','PMgr@2024')">
+                        <div class="account-icon pm">M</div>
+                        <div>
+                            <strong>Project Manager</strong>
+                            <span>Priya Sharma</span>
+                        </div>
+                    </div>
+                    <div class="account-card" onclick="fillLogin('admin','Admin@2024')">
+                        <div class="account-icon admin">A</div>
+                        <div>
+                            <strong>Administrator</strong>
+                            <span>System Admin</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function fillLogin(username, password) {
+        document.getElementById('username').value = username;
+        document.getElementById('password').value = password;
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        try {
+            const resp = await fetch('/login', {
+                method: 'POST',
+                body: formData,
+                redirect: 'follow',
+            });
+            if (resp.redirected) {
+                window.location.href = resp.url;
+            } else if (!resp.ok) {
+                document.getElementById('loginError').textContent = 'Invalid credentials';
+                document.getElementById('loginError').style.display = 'block';
+            }
+        } catch (err) {
+            document.getElementById('loginError').textContent = 'Connection error';
+            document.getElementById('loginError').style.display = 'block';
+        }
+    });
+    </script>
+</body>
+</html>

@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process Report - Process Extractor Pro</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
+                    <rect width="48" height="48" rx="12" fill="#818CF8"/>
+                    <path d="M14 24L20 30L34 16" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <h2>Process Extractor</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/dashboard">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                    Dashboard
+                </a>
+                <a href="/feedback">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    Feedback
+                </a>
+                <a href="/settings">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V12a2 2 0 0 1 0 4z"/></svg>
+                    Settings
+                </a>
+                <a href="/logout">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    Sign Out
+                </a>
+            </nav>
+            <div class="sidebar-user">
+                <div class="user-info">
+                    <div class="user-avatar">{{ user.full_name[0] }}</div>
+                    <div>
+                        <div class="user-name">{{ user.full_name }}</div>
+                        <div class="user-role">{{ user.role | replace('_',' ') | title }}</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px;">
+                <h1 style="font-size:24px; font-weight:700;">Process Analysis Report</h1>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn btn-outline" onclick="exportReport()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Export HTML
+                    </button>
+                    <button class="btn btn-outline" onclick="window.print()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                        Print / PDF
+                    </button>
+                    <a href="/dashboard" class="btn btn-outline">Back</a>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('summary')">Summary</button>
+                <button class="tab" onclick="switchTab('l3map')">L3 Process Map</button>
+                <button class="tab" onclick="switchTab('l4map')">L4 Process Map</button>
+                <button class="tab" onclick="switchTab('timeline')">Timeline</button>
+                <button class="tab" onclick="switchTab('flowchart')">Flowchart</button>
+                <button class="tab" onclick="switchTab('sop')">SOP</button>
+                <button class="tab" onclick="switchTab('automation')">Automation</button>
+                <button class="tab" onclick="switchTab('ai')">AI Opportunities</button>
+                <button class="tab" onclick="switchTab('consulting')">Consulting</button>
+            </div>
+
+            <!-- Summary Tab -->
+            <div id="tab-summary" class="tab-content active">
+                <div class="card">
+                    <h3>Process Summary</h3>
+                    <div id="summaryContent" style="line-height:1.8;"></div>
+                </div>
+            </div>
+
+            <!-- L3 Process Map -->
+            <div id="tab-l3map" class="tab-content">
+                <div class="process-map-container">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <h3>L3 Process Map (High-Level)</h3>
+                        <span class="annotation-badge" onclick="toggleComplianceMode()">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                            Toggle Compliance Tags
+                        </span>
+                    </div>
+                    <div id="l3MapContent" class="process-steps"></div>
+                    <div id="l3Details" style="margin-top:24px;"></div>
+                </div>
+            </div>
+
+            <!-- L4 Process Map -->
+            <div id="tab-l4map" class="tab-content">
+                <div class="process-map-container">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <h3>L4 Process Map (Detailed)</h3>
+                        <span class="annotation-badge" onclick="toggleAnnotations()">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            Add Annotations
+                        </span>
+                    </div>
+                    <div id="l4MapContent"></div>
+                </div>
+            </div>
+
+            <!-- Timeline View (NEW - PM feedback) -->
+            <div id="tab-timeline" class="tab-content">
+                <div class="card">
+                    <h3>Process Timeline</h3>
+                    <div id="timelineContent" class="timeline"></div>
+                </div>
+            </div>
+
+            <!-- Flowchart -->
+            <div id="tab-flowchart" class="tab-content">
+                <div class="mermaid-container">
+                    <h3 style="margin-bottom:16px;">Process Flowchart</h3>
+                    <div id="mermaidDiagram"></div>
+                </div>
+            </div>
+
+            <!-- SOP -->
+            <div id="tab-sop" class="tab-content">
+                <div class="sop-document" id="sopContent"></div>
+            </div>
+
+            <!-- Automation -->
+            <div id="tab-automation" class="tab-content">
+                <div class="card">
+                    <h3>Automation Recommendations</h3>
+                    <div id="automationContent"></div>
+                </div>
+            </div>
+
+            <!-- AI -->
+            <div id="tab-ai" class="tab-content">
+                <div class="card">
+                    <h3>AI Implementation Opportunities</h3>
+                    <div id="aiContent"></div>
+                </div>
+            </div>
+
+            <!-- Consulting -->
+            <div id="tab-consulting" class="tab-content">
+                <div class="consulting-report" id="consultingContent">
+                    <div style="text-align:center; padding:40px;">
+                        <button class="btn btn-primary" onclick="loadConsulting()">Generate Consulting Report</button>
+                        <p style="margin-top:8px; color:var(--gray-500); font-size:13px;">AI-powered strategic recommendations</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feedback Section -->
+            <div class="card" style="margin-top:24px;">
+                <h3>Provide Feedback on This Analysis</h3>
+                <div class="feedback-form">
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Category</label>
+                            <select id="feedbackCategory">
+                                <option value="accuracy">Accuracy of Process Map</option>
+                                <option value="completeness">Completeness of Analysis</option>
+                                <option value="usability">Usability of Report</option>
+                                <option value="suggestion">Suggestion for Improvement</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Rating</label>
+                            <div class="rating-stars" id="ratingStars">
+                                <svg class="star" data-value="1" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                                <svg class="star" data-value="2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                                <svg class="star" data-value="3" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                                <svg class="star" data-value="4" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                                <svg class="star" data-value="5" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Comments</label>
+                        <textarea id="feedbackComment" placeholder="Share your feedback about this process analysis..."></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="submitFeedback()">Submit Feedback</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+    const RECORDING_ID = {{ recording_id }};
+    let currentRating = 0;
+    let reportData = null;
+    let complianceMode = false;
+    let annotationMode = false;
+
+    mermaid.initialize({ startOnLoad: false, theme: 'default' });
+
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.getElementById('tab-' + tabName).classList.add('active');
+        event.target.classList.add('active');
+    }
+
+    document.querySelectorAll('.star').forEach(star => {
+        star.addEventListener('click', () => {
+            currentRating = parseInt(star.dataset.value);
+            document.querySelectorAll('.star').forEach((s, i) => {
+                s.classList.toggle('active', i < currentRating);
+            });
+        });
+    });
+
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    function toggleComplianceMode() {
+        complianceMode = !complianceMode;
+        if (reportData) renderL3Map(reportData.l3_process_map);
+        showToast(complianceMode ? 'Compliance tags shown' : 'Compliance tags hidden');
+    }
+
+    function toggleAnnotations() {
+        annotationMode = !annotationMode;
+        showToast(annotationMode ? 'Click on any L4 step to add an annotation' : 'Annotation mode off');
+    }
+
+    async function loadReport() {
+        try {
+            const resp = await fetch(`/api/reports/${RECORDING_ID}`);
+            if (!resp.ok) {
+                // Report doesn't exist — show re-analyze option
+                document.getElementById('tab-summary').innerHTML = `
+                    <div class="card" style="text-align:center; padding:40px;">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5" style="margin-bottom:16px;">
+                            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                        <h3 style="margin-bottom:8px;">No Report Generated Yet</h3>
+                        <p style="color:var(--gray-500); margin-bottom:20px;">This recording hasn't been analyzed yet, or the analysis didn't produce results.</p>
+                        <button class="btn btn-primary" onclick="reanalyze()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                            Analyze Now
+                        </button>
+                    </div>`;
+                return;
+            }
+            reportData = await resp.json();
+            await renderReport(reportData);
+        } catch (err) {
+            showToast('Failed to load report: ' + err.message, 'error');
+        }
+    }
+
+    async function reanalyze() {
+        document.getElementById('tab-summary').innerHTML = `
+            <div class="card" style="text-align:center; padding:40px;">
+                <div class="loading-spinner" style="margin:0 auto;"></div>
+                <p style="margin-top:16px; color:var(--gray-600);">Analyzing your recording...</p>
+            </div>`;
+        try {
+            const resp = await fetch(`/api/reports/${RECORDING_ID}/reanalyze`, { method: 'POST' });
+            if (resp.ok) {
+                showToast('Analysis complete! Loading report...');
+                await loadReport();
+            } else {
+                const err = await resp.json();
+                showToast('Analysis failed: ' + (err.message || err.detail), 'error');
+            }
+        } catch (err) {
+            showToast('Error: ' + err.message, 'error');
+        }
+    }
+
+    async function renderReport(data) {
+        // Summary
+        document.getElementById('summaryContent').innerHTML = data.summary || 'No summary available.';
+
+        // L3
+        if (data.l3_process_map) renderL3Map(data.l3_process_map);
+
+        // L4
+        if (data.l4_process_map && data.l4_process_map.steps) {
+            let l4Html = '<table class="rec-table"><tr><th>ID</th><th>Parent</th><th>Step</th><th>Description</th><th>Action</th><th>System</th><th>Time</th></tr>';
+            data.l4_process_map.steps.forEach(step => {
+                l4Html += `<tr class="l4-row" data-step-id="${step.id}">
+                    <td>${step.id}</td>
+                    <td><span class="badge badge-info">${step.parent_l3}</span></td>
+                    <td><strong>${step.name}</strong></td>
+                    <td>${step.description}</td>
+                    <td><span class="badge badge-warning">${step.action_type}</span></td>
+                    <td>${step.system}</td>
+                    <td>${step.estimated_time_seconds}s</td>
+                </tr>`;
+            });
+            l4Html += '</table>';
+            document.getElementById('l4MapContent').innerHTML = l4Html;
+
+            // Add click handlers for annotations
+            document.querySelectorAll('.l4-row').forEach(row => {
+                row.addEventListener('click', () => {
+                    if (!annotationMode) return;
+                    const stepId = row.dataset.stepId;
+                    const note = prompt(`Add annotation for ${stepId}:`);
+                    if (note) {
+                        const cell = row.querySelector('td:nth-child(4)');
+                        cell.innerHTML += ` <span class="compliance-tag standard" title="User annotation">${note}</span>`;
+                        showToast('Annotation added!');
+                    }
+                });
+            });
+        }
+
+        // Timeline (NEW)
+        if (data.l4_process_map && data.l4_process_map.steps) {
+            let tlHtml = '';
+            let cumTime = 0;
+            data.l4_process_map.steps.forEach(step => {
+                const timeStr = formatTime(cumTime);
+                tlHtml += `
+                    <div class="timeline-item">
+                        <div class="tl-time">${timeStr}</div>
+                        <div class="tl-title">${step.name}</div>
+                        <div class="tl-desc">${step.description} (${step.system}) - ${step.estimated_time_seconds}s</div>
+                    </div>`;
+                cumTime += step.estimated_time_seconds;
+            });
+            tlHtml += `<div class="timeline-item"><div class="tl-time">${formatTime(cumTime)}</div><div class="tl-title" style="color:var(--success);">Process Complete</div><div class="tl-desc">Total estimated time: ${cumTime}s</div></div>`;
+            document.getElementById('timelineContent').innerHTML = tlHtml;
+        }
+
+        // Mermaid
+        if (data.mermaid_diagram) {
+            const diagramDiv = document.getElementById('mermaidDiagram');
+            try {
+                const { svg } = await mermaid.render('mermaid-svg-' + Date.now(), data.mermaid_diagram);
+                diagramDiv.innerHTML = svg;
+            } catch(e) {
+                console.warn('Mermaid render failed, showing raw diagram:', e);
+                diagramDiv.innerHTML = '<pre style="text-align:left; background:var(--gray-50); padding:16px; border-radius:8px; font-size:13px;">' + data.mermaid_diagram + '</pre>';
+            }
+        }
+
+        // SOP
+        if (data.sop) document.getElementById('sopContent').innerHTML = marked.parse(data.sop);
+
+        // Automation Recommendations (with possibility scores)
+        if (data.automation_recommendations && data.automation_recommendations.length) {
+            let autoHtml = '<table class="rec-table"><tr><th>Area</th><th>Current State</th><th>Recommendation</th><th>Technology</th><th>Possibility</th><th>Rationale</th></tr>';
+            data.automation_recommendations.forEach(rec => {
+                const score = rec.possibility_score || 0;
+                const scoreColor = score >= 85 ? 'var(--success)' : score >= 70 ? 'var(--primary)' : 'var(--warning)';
+                autoHtml += `<tr>
+                    <td><strong>${rec.area}</strong></td>
+                    <td>${rec.current_state}</td>
+                    <td>${rec.recommendation}</td>
+                    <td><span class="badge badge-info">${rec.technology}</span></td>
+                    <td><div style="display:flex;align-items:center;gap:6px;">
+                        <div style="width:40px;height:40px;border-radius:50%;border:3px solid ${scoreColor};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:${scoreColor};">${score}</div>
+                    </div></td>
+                    <td style="font-size:12px;color:var(--gray-600);">${rec.rationale || rec.estimated_roi || ''}</td>
+                </tr>`;
+            });
+            autoHtml += '</table>';
+            document.getElementById('automationContent').innerHTML = autoHtml;
+        } else {
+            document.getElementById('automationContent').innerHTML = '<p style="color:var(--gray-400);text-align:center;padding:20px;">No high-confidence automation opportunities identified for this process.</p>';
+        }
+
+        // AI Recommendations (with possibility scores)
+        if (data.ai_recommendations && data.ai_recommendations.length) {
+            let aiHtml = '<table class="rec-table"><tr><th>Area</th><th>AI Solution</th><th>Technology</th><th>Possibility</th><th>Rationale</th></tr>';
+            data.ai_recommendations.forEach(rec => {
+                const score = rec.possibility_score || 0;
+                const scoreColor = score >= 85 ? 'var(--success)' : score >= 70 ? 'var(--primary)' : 'var(--warning)';
+                aiHtml += `<tr>
+                    <td><strong>${rec.area}</strong></td>
+                    <td>${rec.ai_solution}</td>
+                    <td><span class="badge badge-info">${rec.technology}</span></td>
+                    <td><div style="display:flex;align-items:center;gap:6px;">
+                        <div style="width:40px;height:40px;border-radius:50%;border:3px solid ${scoreColor};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:${scoreColor};">${score}</div>
+                    </div></td>
+                    <td style="font-size:12px;color:var(--gray-600);">${rec.rationale || rec.business_value || ''}</td>
+                </tr>`;
+            });
+            aiHtml += '</table>';
+            document.getElementById('aiContent').innerHTML = aiHtml;
+        } else {
+            document.getElementById('aiContent').innerHTML = '<p style="color:var(--gray-400);text-align:center;padding:20px;">No high-confidence AI opportunities identified for this process.</p>';
+        }
+    }
+
+    function renderL3Map(l3Data) {
+        if (!l3Data || !l3Data.steps) return;
+        let l3Html = '';
+        l3Data.steps.forEach((step, i) => {
+            const complianceTag = complianceMode
+                ? `<div style="margin-top:6px;"><span class="compliance-tag ${i === 0 || i === 2 ? 'critical' : 'standard'}" onclick="event.stopPropagation(); toggleStepCompliance(this)">${i === 0 || i === 2 ? 'Compliance Critical' : 'Standard'}</span></div>`
+                : '';
+            l3Html += `
+                <div class="process-step">
+                    <div class="step-circle">${i + 1}</div>
+                    <div class="step-name">${step.name}</div>
+                    <div class="step-desc">${step.description || ''}</div>
+                    ${complianceTag}
+                </div>`;
+        });
+        document.getElementById('l3MapContent').innerHTML = l3Html;
+
+        let detailHtml = `<p style="margin-bottom:12px;"><strong>Process:</strong> ${l3Data.process_name || ''} | <strong>Owner:</strong> ${l3Data.process_owner || ''}</p>`;
+        detailHtml += '<table class="rec-table"><tr><th>ID</th><th>Step</th><th>Description</th><th>Inputs</th><th>Outputs</th><th>Systems</th></tr>';
+        l3Data.steps.forEach(step => {
+            detailHtml += `<tr>
+                <td>${step.id}</td>
+                <td><strong>${step.name}</strong></td>
+                <td>${step.description}</td>
+                <td>${(step.inputs || []).join(', ')}</td>
+                <td>${(step.outputs || []).join(', ')}</td>
+                <td>${(step.systems || []).join(', ')}</td>
+            </tr>`;
+        });
+        detailHtml += '</table>';
+        document.getElementById('l3Details').innerHTML = detailHtml;
+    }
+
+    function toggleStepCompliance(el) {
+        if (el.classList.contains('critical')) {
+            el.classList.remove('critical');
+            el.classList.add('standard');
+            el.textContent = 'Standard';
+        } else {
+            el.classList.remove('standard');
+            el.classList.add('critical');
+            el.textContent = 'Compliance Critical';
+        }
+    }
+
+    function formatTime(seconds) {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return m > 0 ? `${m}m ${s}s` : `${s}s`;
+    }
+
+    async function exportReport() {
+        try {
+            const resp = await fetch(`/api/reports/${RECORDING_ID}/export`);
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `process_report_${RECORDING_ID}.html`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Report exported!');
+        } catch (err) {
+            showToast('Export failed', 'error');
+        }
+    }
+
+    async function loadConsulting() {
+        document.getElementById('consultingContent').innerHTML = '<div style="text-align:center; padding:40px;"><div class="loading-spinner" style="margin:0 auto;"></div><p style="margin-top:16px;">Generating consulting report...</p></div>';
+        try {
+            const resp = await fetch(`/api/reports/${RECORDING_ID}/consulting`);
+            const data = await resp.json();
+            document.getElementById('consultingContent').innerHTML = marked.parse(data.advice);
+        } catch (err) {
+            document.getElementById('consultingContent').innerHTML = '<p style="color:var(--danger);">Failed to generate report.</p>';
+        }
+    }
+
+    async function submitFeedback() {
+        const comment = document.getElementById('feedbackComment').value;
+        if (!comment.trim()) { showToast('Please enter a comment', 'error'); return; }
+        try {
+            const resp = await fetch('/api/reports/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recording_id: RECORDING_ID,
+                    category: document.getElementById('feedbackCategory').value,
+                    rating: currentRating || null,
+                    comment: comment,
+                }),
+            });
+            if (resp.ok) {
+                showToast('Feedback submitted successfully!');
+                document.getElementById('feedbackComment').value = '';
+                currentRating = 0;
+                document.querySelectorAll('.star').forEach(s => s.classList.remove('active'));
+            }
+        } catch (err) {
+            showToast('Failed to submit feedback', 'error');
+        }
+    }
+
+    loadReport();
+    </script>
+</body>
+</html>

@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Process Extractor Pro</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .settings-section { margin-bottom: 32px; }
+        .settings-section h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .model-card {
+            border: 1px solid var(--gray-200);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 16px;
+            position: relative;
+            transition: border-color 0.2s;
+        }
+        .model-card:hover { border-color: var(--primary-light); }
+        .model-card.is-default { border-color: var(--primary); border-width: 2px; }
+        .model-card .default-badge {
+            position: absolute;
+            top: -10px;
+            right: 16px;
+            background: var(--primary);
+            color: white;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .model-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .model-card-header h4 { font-size: 15px; font-weight: 600; }
+        .model-card-actions { display: flex; gap: 6px; }
+        .model-card-body { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; }
+        .model-field { display: flex; flex-direction: column; gap: 2px; }
+        .model-field .label { color: var(--gray-500); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .model-field .value { color: var(--gray-800); font-weight: 500; word-break: break-all; }
+        .provider-icon {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .provider-icon.anthropic { background: #F3E8FF; color: #7C3AED; }
+        .provider-icon.openai { background: #DCFCE7; color: #16A34A; }
+        .provider-icon.custom { background: #FEF3C7; color: #D97706; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+        .form-divider { border-top: 1px solid var(--gray-200); margin: 20px 0; }
+        .test-result {
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-top: 12px;
+            display: none;
+        }
+        .test-result.success { background: #D1FAE5; color: #065F46; display: block; }
+        .test-result.error { background: #FEE2E2; color: #991B1B; display: block; }
+        .test-result.loading { background: var(--gray-100); color: var(--gray-600); display: flex; align-items: center; gap: 8px; }
+        .help-text { font-size: 12px; color: var(--gray-500); margin-top: 4px; }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--gray-400);
+        }
+        .empty-state svg { margin-bottom: 12px; }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
+                    <rect width="48" height="48" rx="12" fill="#818CF8"/>
+                    <path d="M14 24L20 30L34 16" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <h2>Process Extractor</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/dashboard">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                    Dashboard
+                </a>
+                <a href="/feedback">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    Feedback
+                </a>
+                <a href="/settings" class="active">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    Settings
+                </a>
+                <a href="/logout">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    Sign Out
+                </a>
+            </nav>
+            <div class="sidebar-user">
+                <div class="user-info">
+                    <div class="user-avatar">{{ user.full_name[0] }}</div>
+                    <div>
+                        <div class="user-name">{{ user.full_name }}</div>
+                        <div class="user-role">{{ user.role | replace('_',' ') | title }}</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <h1 style="font-size:24px; font-weight:700; margin-bottom:24px;">Settings</h1>
+
+            <!-- Add New Model Section -->
+            <div class="card settings-section">
+                <h2>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                    Add AI Model Endpoint
+                </h2>
+                <p style="color:var(--gray-500); font-size:13px; margin-bottom:20px;">
+                    Configure your own AI model endpoints. Supports Anthropic, OpenAI, and any OpenAI-compatible custom server.
+                </p>
+
+                <form id="addModelForm" onsubmit="return false;">
+                    <div class="form-row-3">
+                        <div class="form-group">
+                            <label>Provider</label>
+                            <select id="provider" onchange="onProviderChange()">
+                                <option value="anthropic">Anthropic (Claude)</option>
+                                <option value="openai">OpenAI (GPT)</option>
+                                <option value="custom">Custom Endpoint</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Configuration Name</label>
+                            <input type="text" id="configName" placeholder="e.g., My Production Model">
+                        </div>
+                        <div class="form-group">
+                            <label>Model ID</label>
+                            <input type="text" id="modelId" placeholder="e.g., claude-sonnet-4-6">
+                            <div class="help-text" id="modelIdHelp">Anthropic: claude-sonnet-4-6, claude-opus-4-6, claude-haiku-4-5-20251001</div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>API Key</label>
+                            <div style="position:relative;">
+                                <input type="password" id="apiKey" placeholder="sk-ant-... or sk-...">
+                                <button type="button" onclick="toggleKeyVisibility()" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--gray-400);" title="Toggle visibility">
+                                    <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Base URL <span style="color:var(--gray-400); font-weight:normal;">(optional for Anthropic/OpenAI)</span></label>
+                            <input type="text" id="baseUrl" placeholder="https://your-server.com/v1">
+                            <div class="help-text" id="baseUrlHelp">Leave empty to use the default Anthropic API. Set for self-hosted or proxy endpoints.</div>
+                        </div>
+                    </div>
+
+                    <div class="form-row-3">
+                        <div class="form-group">
+                            <label>Max Tokens</label>
+                            <input type="number" id="maxTokens" value="8000" min="100" max="200000">
+                        </div>
+                        <div class="form-group" style="display:flex; align-items:flex-end;">
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="isDefault" style="width:auto;"> Set as default model
+                            </label>
+                        </div>
+                        <div></div>
+                    </div>
+
+                    <div style="display:flex; gap:8px; margin-top:8px;">
+                        <button class="btn btn-outline" onclick="testConnection()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            Test Connection
+                        </button>
+                        <button class="btn btn-primary" onclick="saveModel()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                            Save Configuration
+                        </button>
+                    </div>
+
+                    <div id="testResult" class="test-result"></div>
+                </form>
+            </div>
+
+            <!-- Saved Models -->
+            <div class="card settings-section">
+                <h2>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+                    Saved Model Configurations
+                </h2>
+                <div id="modelsList">
+                    <div class="empty-state">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9V12a2 2 0 0 1 0 4z"/></svg>
+                        <p>No model configurations saved yet.</p>
+                        <p style="font-size:12px;">Add your first AI model endpoint above.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Reference -->
+            <div class="card settings-section">
+                <h2>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    Quick Reference
+                </h2>
+                <div style="font-size:13px;">
+                    <table class="rec-table">
+                        <tr><th>Provider</th><th>Default Base URL</th><th>Common Models</th></tr>
+                        <tr>
+                            <td><span class="provider-icon anthropic">Anthropic</span></td>
+                            <td><code>https://api.anthropic.com</code></td>
+                            <td>claude-opus-4-6, claude-sonnet-4-6, claude-haiku-4-5-20251001</td>
+                        </tr>
+                        <tr>
+                            <td><span class="provider-icon openai">OpenAI</span></td>
+                            <td><code>https://api.openai.com/v1</code></td>
+                            <td>gpt-4o, gpt-4-turbo, gpt-3.5-turbo</td>
+                        </tr>
+                        <tr>
+                            <td><span class="provider-icon custom">Custom</span></td>
+                            <td><code>https://your-server.com/v1</code></td>
+                            <td>Any OpenAI-compatible endpoint (vLLM, Ollama, LiteLLM, etc.)</td>
+                        </tr>
+                    </table>
+                    <div style="margin-top:12px; padding:12px; background:var(--gray-50); border-radius:8px;">
+                        <strong>Custom Endpoints:</strong> Your server must expose an OpenAI-compatible <code>/chat/completions</code> endpoint.
+                        The app will POST to <code>{base_url}/chat/completions</code> with a standard messages payload. Works with vLLM, Ollama (with OpenAI compat), LiteLLM, LocalAI, and similar servers.
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 4000);
+    }
+
+    function toggleKeyVisibility() {
+        const input = document.getElementById('apiKey');
+        const icon = document.getElementById('eyeIcon');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+        } else {
+            input.type = 'password';
+            icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+        }
+    }
+
+    function onProviderChange() {
+        const provider = document.getElementById('provider').value;
+        const modelInput = document.getElementById('modelId');
+        const helpText = document.getElementById('modelIdHelp');
+        const baseUrlHelp = document.getElementById('baseUrlHelp');
+
+        switch (provider) {
+            case 'anthropic':
+                modelInput.placeholder = 'e.g., claude-sonnet-4-6';
+                helpText.textContent = 'Anthropic: claude-sonnet-4-6, claude-opus-4-6, claude-haiku-4-5-20251001';
+                baseUrlHelp.textContent = 'Leave empty to use the default Anthropic API. Set for self-hosted or proxy endpoints.';
+                break;
+            case 'openai':
+                modelInput.placeholder = 'e.g., gpt-4o';
+                helpText.textContent = 'OpenAI: gpt-4o, gpt-4-turbo, gpt-3.5-turbo';
+                baseUrlHelp.textContent = 'Leave empty for OpenAI API. Set for Azure OpenAI or compatible proxies.';
+                break;
+            case 'custom':
+                modelInput.placeholder = 'e.g., my-fine-tuned-model';
+                helpText.textContent = 'Enter the exact model ID your server expects.';
+                baseUrlHelp.textContent = 'Required: Full URL to your OpenAI-compatible API server (e.g., https://my-server:8080/v1)';
+                break;
+        }
+    }
+
+    function getFormData() {
+        return {
+            provider: document.getElementById('provider').value,
+            name: document.getElementById('configName').value || 'My Model',
+            model_id: document.getElementById('modelId').value,
+            api_key: document.getElementById('apiKey').value,
+            base_url: document.getElementById('baseUrl').value,
+            max_tokens: parseInt(document.getElementById('maxTokens').value) || 8000,
+            is_default: document.getElementById('isDefault').checked,
+        };
+    }
+
+    async function testConnection() {
+        const data = getFormData();
+        if (!data.api_key) { showToast('Please enter an API key', 'error'); return; }
+        if (!data.model_id) { showToast('Please enter a model ID', 'error'); return; }
+
+        const resultDiv = document.getElementById('testResult');
+        resultDiv.className = 'test-result loading';
+        resultDiv.innerHTML = '<div class="loading-spinner" style="width:16px;height:16px;border-width:2px;"></div> Testing connection...';
+        resultDiv.style.display = 'flex';
+
+        try {
+            const resp = await fetch('/api/settings/models/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+            const result = await resp.json();
+            if (result.status === 'success') {
+                resultDiv.className = 'test-result success';
+                resultDiv.textContent = result.message;
+            } else {
+                resultDiv.className = 'test-result error';
+                resultDiv.textContent = result.message;
+            }
+        } catch (err) {
+            resultDiv.className = 'test-result error';
+            resultDiv.textContent = 'Request failed: ' + err.message;
+        }
+    }
+
+    async function saveModel() {
+        const data = getFormData();
+        if (!data.api_key) { showToast('API key is required', 'error'); return; }
+        if (!data.model_id) { showToast('Model ID is required', 'error'); return; }
+
+        try {
+            const resp = await fetch('/api/settings/models', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+            if (resp.ok) {
+                showToast('Model configuration saved!');
+                // Clear form
+                document.getElementById('configName').value = '';
+                document.getElementById('modelId').value = '';
+                document.getElementById('apiKey').value = '';
+                document.getElementById('baseUrl').value = '';
+                document.getElementById('isDefault').checked = false;
+                document.getElementById('testResult').style.display = 'none';
+                loadModels();
+            } else {
+                const err = await resp.json();
+                showToast(err.detail || 'Failed to save', 'error');
+            }
+        } catch (err) {
+            showToast('Error: ' + err.message, 'error');
+        }
+    }
+
+    async function loadModels() {
+        try {
+            const resp = await fetch('/api/settings/models');
+            const models = await resp.json();
+            const container = document.getElementById('modelsList');
+
+            if (!models.length) {
+                container.innerHTML = `<div class="empty-state">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9V12a2 2 0 0 1 0 4z"/></svg>
+                    <p>No model configurations saved yet.</p>
+                    <p style="font-size:12px;">Add your first AI model endpoint above.</p>
+                </div>`;
+                return;
+            }
+
+            let html = '';
+            models.forEach(m => {
+                html += `
+                <div class="model-card ${m.is_default ? 'is-default' : ''}">
+                    ${m.is_default ? '<div class="default-badge">DEFAULT</div>' : ''}
+                    <div class="model-card-header">
+                        <h4>
+                            <span class="provider-icon ${m.provider}">${m.provider}</span>
+                            ${m.name}
+                        </h4>
+                        <div class="model-card-actions">
+                            ${!m.is_default ? `<button class="btn btn-sm btn-outline" onclick="setDefault(${m.id})">Set Default</button>` : ''}
+                            <button class="btn btn-sm btn-outline" onclick="toggleActive(${m.id}, ${!m.is_active})" style="${!m.is_active ? 'opacity:0.5' : ''}">
+                                ${m.is_active ? 'Active' : 'Inactive'}
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteModel(${m.id})">Delete</button>
+                        </div>
+                    </div>
+                    <div class="model-card-body">
+                        <div class="model-field">
+                            <span class="label">Model ID</span>
+                            <span class="value">${m.model_id}</span>
+                        </div>
+                        <div class="model-field">
+                            <span class="label">API Key</span>
+                            <span class="value" style="font-family:monospace;">${m.api_key_preview}</span>
+                        </div>
+                        <div class="model-field">
+                            <span class="label">Base URL</span>
+                            <span class="value">${m.base_url || '(default)'}</span>
+                        </div>
+                        <div class="model-field">
+                            <span class="label">Max Tokens</span>
+                            <span class="value">${m.max_tokens}</span>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        } catch (err) {
+            console.error('Failed to load models:', err);
+        }
+    }
+
+    async function setDefault(id) {
+        try {
+            await fetch(`/api/settings/models/${id}/set-default`, { method: 'POST' });
+            showToast('Default model updated');
+            loadModels();
+        } catch (err) {
+            showToast('Failed to update', 'error');
+        }
+    }
+
+    async function toggleActive(id, active) {
+        try {
+            await fetch(`/api/settings/models/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_active: active }),
+            });
+            showToast(active ? 'Model activated' : 'Model deactivated');
+            loadModels();
+        } catch (err) {
+            showToast('Failed to update', 'error');
+        }
+    }
+
+    async function deleteModel(id) {
+        if (!confirm('Delete this model configuration?')) return;
+        try {
+            await fetch(`/api/settings/models/${id}`, { method: 'DELETE' });
+            showToast('Model deleted');
+            loadModels();
+        } catch (err) {
+            showToast('Failed to delete', 'error');
+        }
+    }
+
+    // Load models on page ready
+    loadModels();
+    </script>
+</body>
+</html>
