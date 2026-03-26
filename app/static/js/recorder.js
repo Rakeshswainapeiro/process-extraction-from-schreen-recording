@@ -445,6 +445,20 @@ class ScreenRecorder {
         this.timerInterval = setInterval(() => {
             if (this.isPaused) return;
             const elapsed = Math.floor((Date.now() - this.startTime - this.pausedTime) / 1000);
+
+            // Auto-stop at 30 minutes (1800 seconds)
+            if (elapsed >= 1800) {
+                if (window.showToast) {
+                    window.showToast('Maximum recording time of 30 minutes reached. Stopping automatically.', 'warning');
+                } else {
+                    alert('Maximum recording time of 30 minutes reached. Stopping automatically.');
+                }
+                if (this.isRecording && typeof window.stopRecording === 'function') {
+                    window.stopRecording();
+                }
+                return;
+            }
+
             const hrs = String(Math.floor(elapsed / 3600)).padStart(2, '0');
             const mins = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
             const secs = String(elapsed % 60).padStart(2, '0');

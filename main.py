@@ -15,6 +15,7 @@ app = FastAPI(title=settings.APP_NAME)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "app", "static")), name="static")
+app.mount("/screenshots", StaticFiles(directory=settings.SCREENSHOTS_DIR), name="screenshots")
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "app", "templates"))
 
 # Include routers

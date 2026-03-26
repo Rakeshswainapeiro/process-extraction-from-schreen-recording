@@ -8,6 +8,7 @@ anthropic==0.42.0
 pillow==11.1.0
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+bcrypt==3.2.2
 pydantic==2.10.4
 pydantic-settings==2.7.1
 aiofiles==24.1.0

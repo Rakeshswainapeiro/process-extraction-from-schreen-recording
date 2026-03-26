@@ -1,5 +1,6 @@
 import json
 import datetime
+import os
 from typing import Optional
 
 import anthropic
@@ -70,6 +71,9 @@ class ProcessAnalyzer:
                 line += f" | Element: {act.element_text}"
             if act.element_type:
                 line += f" | Type: {act.element_type}"
+            if act.screenshot_path:
+                filename = os.path.basename(act.screenshot_path)
+                line += f" | Screenshot URL: /screenshots/{filename}"
             lines.append(line)
         return "\n".join(lines)
 
@@ -183,7 +187,7 @@ Respond ONLY with valid JSON in this format:
         ]
     }},
 
-    "sop": "A concise Standard Operating Procedure in Markdown: Title, Purpose, Prerequisites, numbered Steps, Decision points, Expected outcomes.",
+    "sop": "A concise Standard Operating Procedure in Markdown: Title, Purpose, Prerequisites, numbered Steps, Decision points, Expected outcomes. IMPORTANT: For every step, if a 'Screenshot URL' is available in the activity log for that action, you MUST embed it under the step using this exact HTML structure for a professional dropdown: <details style='margin-top: 10px;'><summary style='cursor: pointer; color: #4F46E5; font-weight: 500;'>📸 View Step Screenshot</summary><div style='padding: 10px; border: 1px solid #E5E7EB; border-radius: 8px; margin-top: 8px;'>\n\n![Action Description](/screenshots/xyz.png)\n\n</div></details>",
 
     "automation_recommendations": [
         {{

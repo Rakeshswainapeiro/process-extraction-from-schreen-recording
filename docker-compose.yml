@@ -1,0 +1,14 @@
+services:
+  app:
+    build: .
+    container_name: process-extractor-pro
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - app_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  app_data:

@@ -358,7 +358,27 @@
         }
 
         // SOP
-        if (data.sop) document.getElementById('sopContent').innerHTML = marked.parse(data.sop);
+        if (data.sop) {
+            const sopEl = document.getElementById('sopContent');
+            sopEl.innerHTML = marked.parse(data.sop);
+            
+            // Auto-wrap images in <details> if they aren't already (Fixes old/existing reports)
+            sopEl.querySelectorAll('img').forEach(img => {
+                if (!img.closest('details')) {
+                    const details = document.createElement('details');
+                    details.className = 'sop-auto-dropdown';
+                    const summary = document.createElement('summary');
+                    summary.innerHTML = '📸 View Step Screenshot';
+                    
+                    const div = document.createElement('div');
+                    
+                    img.parentNode.insertBefore(details, img);
+                    details.appendChild(summary);
+                    details.appendChild(div);
+                    div.appendChild(img);
+                }
+            });
+        }
 
         // Automation Recommendations (with possibility scores)
         if (data.automation_recommendations && data.automation_recommendations.length) {
