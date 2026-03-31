@@ -5,16 +5,511 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Process Extractor Pro</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* ===== TOPBAR ===== */
+        .topbar {
+            position: fixed;
+            top: 0;
+            left: 260px;
+            right: 0;
+            height: 64px;
+            background: white;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            z-index: 90;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+        .topbar-left h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+        .topbar-left p {
+            font-size: 12px;
+            color: var(--gray-400);
+            margin-top: 1px;
+        }
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .topbar-date {
+            font-size: 13px;
+            color: var(--gray-500);
+            background: var(--gray-50);
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--gray-200);
+        }
+        .topbar-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), #818CF8);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        /* ===== MAIN WITH TOPBAR OFFSET ===== */
+        .main-content {
+            margin-left: 260px;
+            padding: 96px 32px 32px;
+        }
+
+        /* ===== ENHANCED STAT CARDS ===== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 28px;
+        }
+        .stat-card-v2 {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            border: 1px solid var(--gray-100);
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+        .stat-card-v2:hover {
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        .stat-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .stat-icon.purple { background: linear-gradient(135deg, #EDE9FE, #C4B5FD); }
+        .stat-icon.green  { background: linear-gradient(135deg, #D1FAE5, #6EE7B7); }
+        .stat-icon.blue   { background: linear-gradient(135deg, #DBEAFE, #93C5FD); }
+        .stat-body { flex: 1; }
+        .stat-body .stat-value {
+            font-size: 30px;
+            font-weight: 800;
+            color: var(--gray-900);
+            line-height: 1;
+        }
+        .stat-body .stat-label {
+            font-size: 13px;
+            color: var(--gray-500);
+            margin-top: 4px;
+        }
+        .stat-body .stat-sub {
+            font-size: 11px;
+            color: var(--gray-400);
+            margin-top: 2px;
+        }
+
+        /* ===== RECORDING PANEL REDESIGN ===== */
+        .recording-panel-v2 {
+            background: white;
+            border-radius: 16px;
+            padding: 28px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+            margin-bottom: 28px;
+            border: 1px solid var(--gray-100);
+        }
+        .recording-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+        .recording-panel-header .panel-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .panel-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #EDE9FE, #C4B5FD);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .panel-title h2 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+        .panel-title p {
+            font-size: 12px;
+            color: var(--gray-400);
+            margin-top: 1px;
+        }
+        .recording-input-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .recording-input-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        .recording-input-row .form-group input {
+            border-radius: 10px;
+            padding: 11px 16px;
+            font-size: 14px;
+            border: 1.5px solid var(--gray-200);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .recording-input-row .form-group input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79,70,229,0.08);
+        }
+        .recording-controls-v2 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn-record {
+            background: linear-gradient(135deg, #10B981, #059669);
+            color: white;
+            padding: 11px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(16,185,129,0.3);
+        }
+        .btn-record:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(16,185,129,0.4); }
+        .btn-stop-v2 {
+            background: linear-gradient(135deg, #EF4444, #DC2626);
+            color: white;
+            padding: 11px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(239,68,68,0.3);
+        }
+        .btn-stop-v2:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(239,68,68,0.4); }
+        .timer-v2 {
+            font-family: 'SF Mono', 'Fira Mono', monospace;
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--gray-800);
+            background: var(--gray-50);
+            padding: 8px 18px;
+            border-radius: 10px;
+            border: 1.5px solid var(--gray-200);
+            letter-spacing: 2px;
+        }
+        .activity-pill {
+            background: #EDE9FE;
+            color: var(--primary);
+            padding: 8px 16px 8px 28px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            position: relative;
+        }
+        .activity-pill::before {
+            content: '';
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #EF4444;
+            animation: pulse 1s infinite;
+        }
+        .rec-live-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #EF4444;
+            animation: pulse 1s infinite;
+        }
+
+        /* ===== RECORDING PREVIEW LAYOUT ===== */
+        .preview-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .preview-video-wrap {
+            border: 2px solid var(--gray-200);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            background: var(--gray-900);
+        }
+        .preview-video-wrap video {
+            width: 100%;
+            display: block;
+        }
+        .mini-map-wrap {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            width: 120px;
+            border: 2px solid white;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            display: none;
+        }
+        .mini-map-wrap img {
+            width: 100%;
+            display: block;
+            border-radius: 4px;
+        }
+        .live-feed-card {
+            background: var(--gray-50);
+            border: 1px solid var(--gray-200);
+            border-radius: 12px;
+            padding: 16px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .live-feed-card h4 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-600);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ===== RECORDING HISTORY TABLE ===== */
+        .history-card {
+            background: white;
+            border-radius: 16px;
+            padding: 28px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+            border: 1px solid var(--gray-100);
+        }
+        .history-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .history-header .panel-title h2 { font-size: 17px; }
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .history-table thead th {
+            text-align: left;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--gray-400);
+            padding: 0 16px 12px;
+            border-bottom: 1.5px solid var(--gray-100);
+        }
+        .history-table tbody tr {
+            transition: background 0.15s;
+        }
+        .history-table tbody tr:hover {
+            background: var(--gray-50);
+        }
+        .history-table tbody td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--gray-100);
+            font-size: 13px;
+            color: var(--gray-700);
+            vertical-align: middle;
+        }
+        .history-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        .rec-title-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .rec-thumb {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #EDE9FE, #C4B5FD);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .rec-thumb-text {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .rec-name {
+            font-weight: 600;
+            color: var(--gray-800);
+            font-size: 13px;
+        }
+        .rec-date {
+            font-size: 11px;
+            color: var(--gray-400);
+            margin-top: 2px;
+        }
+        .rec-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-view {
+            background: var(--primary);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn-view:hover { background: var(--primary-dark); }
+        .btn-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            border: 1.5px solid var(--gray-200);
+            background: white;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--gray-400);
+            transition: all 0.2s;
+        }
+        .btn-icon:hover { border-color: var(--danger); color: var(--danger); background: #FEE2E2; }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--gray-400);
+        }
+        .empty-state svg {
+            margin-bottom: 16px;
+            opacity: 0.4;
+        }
+        .empty-state p {
+            font-size: 14px;
+            color: var(--gray-500);
+        }
+        .empty-state span {
+            font-size: 12px;
+            color: var(--gray-400);
+            display: block;
+            margin-top: 4px;
+        }
+
+        /* Status badge enhanced */
+        .badge-v2 {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-v2-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+        .badge-v2.completed  { background: #D1FAE5; color: #065F46; }
+        .badge-v2.completed .badge-v2-dot { background: #10B981; }
+        .badge-v2.processing { background: #FEF3C7; color: #92400E; }
+        .badge-v2.processing .badge-v2-dot { background: #F59E0B; animation: pulse 1s infinite; }
+        .badge-v2.recording  { background: #FEE2E2; color: #991B1B; }
+        .badge-v2.recording  .badge-v2-dot { background: #EF4444; animation: pulse 1s infinite; }
+        .badge-v2.failed     { background: #FEE2E2; color: #991B1B; }
+        .badge-v2.failed     .badge-v2-dot { background: #EF4444; }
+
+        /* Sidebar active indicator */
+        .sidebar-nav a.active {
+            color: white;
+            background: rgba(255,255,255,0.12);
+            position: relative;
+        }
+        .sidebar-nav a.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 6px;
+            bottom: 6px;
+            width: 3px;
+            background: var(--primary-light);
+            border-radius: 0 3px 3px 0;
+        }
+
+        /* Duration chip */
+        .duration-chip {
+            font-size: 12px;
+            color: var(--gray-500);
+            background: var(--gray-100);
+            padding: 3px 10px;
+            border-radius: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .topbar { left: 0; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .preview-grid { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
 <body>
     <div class="app-layout">
+        <!-- Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-brand">
                 <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
                     <rect width="48" height="48" rx="12" fill="#818CF8"/>
                     <path d="M14 24L20 30L34 16" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-                <h2>Process Extractor</h2>
+                <div>
+                    <h2 style="font-size:14px; font-weight:700;">Process Extractor</h2>
+                    <p style="font-size:11px; color:var(--gray-400); margin-top:1px;">Pro</p>
+                </div>
             </div>
             <nav class="sidebar-nav">
                 <a href="/dashboard" class="active">
@@ -29,7 +524,7 @@
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V12a2 2 0 0 1 0 4z"/></svg>
                     Settings
                 </a>
-                <a href="/logout">
+                <a href="/logout" style="margin-top: auto;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                     Sign Out
                 </a>
@@ -45,122 +540,353 @@
             </div>
         </aside>
 
+        <!-- Top Bar -->
+        <div class="topbar">
+            <div class="topbar-left">
+                <h1 id="pageGreeting" data-name="{{ user.full_name.split(' ')[0] }}"></h1>
+                <p>Here's what's happening with your process recordings</p>
+            </div>
+            <div class="topbar-right">
+                <div class="topbar-date" id="topbarDate">Loading...</div>
+                <div class="topbar-avatar" title="{{ user.full_name }}">{{ user.full_name[0] }}</div>
+            </div>
+        </div>
+
+        <!-- Main -->
         <main class="main-content">
-            <h1 style="font-size:24px; font-weight:700; margin-bottom:24px;">Welcome, {{ user.full_name.split(' ')[0] }}</h1>
+
+            <!-- Stat Cards -->
+            <div class="stats-grid">
+                <div class="stat-card-v2">
+                    <div class="stat-icon purple">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+                    </div>
+                    <div class="stat-body">
+                        <div class="stat-value" id="totalRecordings">0</div>
+                        <div class="stat-label">Total Recordings</div>
+                        <div class="stat-sub">All time</div>
+                    </div>
+                </div>
+                <div class="stat-card-v2">
+                    <div class="stat-icon green">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                    </div>
+                    <div class="stat-body">
+                        <div class="stat-value" id="completedRecordings">0</div>
+                        <div class="stat-label">Completed Analyses</div>
+                        <div class="stat-sub">AI-analyzed</div>
+                    </div>
+                </div>
+                <div class="stat-card-v2">
+                    <div class="stat-icon blue">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    </div>
+                    <div class="stat-body">
+                        <div class="stat-value" id="totalActivities">0</div>
+                        <div class="stat-label">Activities Captured</div>
+                        <div class="stat-sub">Clicks, navigations & more</div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Recording Panel -->
-            <div class="recording-panel">
-                <div class="recording-header">
-                    <h2>Screen Recording</h2>
-                    <div id="recordingStatus" class="recording-status idle">Ready to Record</div>
-                </div>
-
-                <div style="margin-bottom:16px;">
-                    <div class="form-group" style="max-width:400px;">
-                        <label for="recordingTitle">Recording Title</label>
-                        <input type="text" id="recordingTitle" placeholder="e.g., Purchase Order Process">
+            <div class="recording-panel-v2">
+                <div class="recording-panel-header">
+                    <div class="panel-title">
+                        <div class="panel-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+                        </div>
+                        <div>
+                            <h2>Screen Recording</h2>
+                            <p>Capture your process and let AI extract insights</p>
+                        </div>
+                    </div>
+                    <div id="recordingStatus" class="recording-status idle">
+                        Ready to Record
                     </div>
                 </div>
 
-                <div class="recording-controls">
-                    <button id="btnStartRecording" class="btn btn-success" onclick="startRecording()">
+                <div class="recording-input-row">
+                    <div class="form-group">
+                        <label for="recordingTitle">Recording Title</label>
+                        <input type="text" id="recordingTitle" placeholder="e.g., Purchase Order Process, Onboarding Flow...">
+                    </div>
+                </div>
+
+                <div class="recording-controls-v2">
+                    <button id="btnStartRecording" class="btn-record" onclick="startRecording()">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
                         Start Recording
                     </button>
-                    <button id="btnPauseRecording" class="btn btn-outline" onclick="pauseRecording()" style="display:none;">
+                    <button id="btnPauseRecording" class="btn btn-outline" onclick="pauseRecording()" style="display:none; border-radius:10px;">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
                         Pause
                     </button>
-                    <button id="btnResumeRecording" class="btn btn-primary" onclick="resumeRecording()" style="display:none;">
+                    <button id="btnResumeRecording" class="btn btn-primary" onclick="resumeRecording()" style="display:none; border-radius:10px;">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
                         Resume
                     </button>
-                    <button id="btnStopRecording" class="btn btn-danger" onclick="stopRecording()" style="display:none;">
+                    <button id="btnStopRecording" class="btn-stop-v2" onclick="stopRecording()" style="display:none;">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
                         Stop & Analyze
                     </button>
-                    <span class="timer" id="timer" style="display:none;">00:00:00</span>
-                    <span class="activity-counter" id="activityCount" style="display:none;">0 activities</span>
+                    <span class="timer-v2" id="timer" style="display:none;">00:00:00</span>
+                    <span class="activity-pill" id="activityCount" style="display:none;"></span>
                 </div>
 
-                <!-- Screen Preview + Activity Feed (shown during recording) -->
-                <div id="recordingPanel" style="display:none; margin-top:16px;">
-                    <div class="grid-2">
-                        <!-- Screen Preview with mini-map -->
-                        <div>
-                            <div style="border:2px solid var(--gray-200); border-radius:8px; overflow:hidden; position:relative;">
-                                <video id="previewVideo" autoplay muted style="width:100%; display:block;"></video>
-                                <!-- Mini-map thumbnail -->
-                                <div id="miniMap" style="position:absolute; bottom:8px; right:8px; width:120px; border:2px solid white; border-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,0.3); display:none;">
-                                    <img id="miniMapThumb" style="width:100%; display:block; border-radius:2px;" alt="Screen capture">
-                                </div>
+                <!-- Live Preview + Feed -->
+                <div id="recordingPanel" style="display:none;">
+                    <div class="preview-grid">
+                        <div class="preview-video-wrap">
+                            <video id="previewVideo" autoplay muted></video>
+                            <div class="mini-map-wrap" id="miniMap">
+                                <img id="miniMapThumb" alt="Screen capture">
                             </div>
-                            <div id="screenPreview" style="display:none;"></div>
                         </div>
-                        <!-- Real-time Activity Feed -->
                         <div>
-                            <div class="card" style="margin-bottom:0; max-height:300px; overflow-y:auto;">
-                                <h3 style="font-size:14px; margin-bottom:12px;">Live Activity Feed</h3>
+                            <div class="live-feed-card">
+                                <h4>
+                                    <span class="rec-live-dot"></span>
+                                    Live Activity Feed
+                                </h4>
                                 <div id="activityFeed" class="activity-feed">
                                     <div class="activity-feed-item" style="color:var(--gray-400); text-align:center; padding:20px;">
-                                        Activities will appear here as you interact with your screen...
+                                        Activities will appear here...
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+                <div id="screenPreview" style="display:none;"></div>
             </div>
 
-            <!-- Stats -->
-            <div class="grid-3" style="margin-bottom:24px;">
-                <div class="stat-card">
-                    <div class="stat-value" id="totalRecordings">0</div>
-                    <div class="stat-label">Total Recordings</div>
+            <!-- Recording History -->
+            <div class="history-card">
+                <div class="history-header">
+                    <div class="panel-title">
+                        <div class="panel-icon" style="background: linear-gradient(135deg, #DBEAFE, #93C5FD);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        </div>
+                        <div>
+                            <h2>Recording History</h2>
+                            <p style="font-size:12px; color:var(--gray-400); margin-top:1px;">All your captured processes</p>
+                        </div>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="completedRecordings">0</div>
-                    <div class="stat-label">Completed Analyses</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="totalActivities">0</div>
-                    <div class="stat-label">Activities Captured</div>
+
+                <!-- Hidden stub required by dashboard.js -->
+                <ul id="recordingsList" style="display:none;"></ul>
+
+                <div id="recordingsTableWrap">
+                    <table class="history-table" id="recordingsTable" style="display:none;">
+                        <thead>
+                            <tr>
+                                <th>Recording</th>
+                                <th>Status</th>
+                                <th>Duration</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recordingsTbody"></tbody>
+                    </table>
+                    <div class="empty-state" id="emptyState">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        <p>No recordings yet</p>
+                        <span>Start your first screen recording above to get started.</span>
+                    </div>
                 </div>
             </div>
 
-            <!-- Recordings History -->
-            <div class="card">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                    <h3 style="margin-bottom:0;">Recording History</h3>
-                </div>
-                <ul class="recordings-list" id="recordingsList">
-                    <li style="color:var(--gray-400); text-align:center; padding:20px;">
-                        No recordings yet. Start your first screen recording above.
-                    </li>
-                </ul>
-            </div>
         </main>
     </div>
 
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="loading-overlay" style="display:none;">
-        <div class="loading-card">
+        <div class="loading-card" style="min-width:320px;">
             <div class="loading-spinner" style="margin:0 auto;"></div>
-            <p id="loadingText">Analyzing your process...</p>
-            <div id="loadingSteps" style="margin-top:16px; text-align:left; font-size:13px; color:var(--gray-500);">
-                <div id="step1" class="loading-step">Extracting process steps...</div>
-                <div id="step2" class="loading-step">Building L3 process map...</div>
-                <div id="step3" class="loading-step">Building L4 detailed map...</div>
-                <div id="step4" class="loading-step">Generating SOP document...</div>
-                <div id="step5" class="loading-step">Analyzing automation potential...</div>
-                <div id="step6" class="loading-step">Identifying AI opportunities...</div>
+            <p id="loadingText" style="font-weight:600; margin-top:20px; color:var(--gray-800);">Analyzing your process...</p>
+            <div id="loadingSteps" style="margin-top:16px; text-align:left; font-size:13px;">
+                <div id="step1" class="loading-step">⏳ Extracting process steps...</div>
+                <div id="step2" class="loading-step">⏳ Building L3 process map...</div>
+                <div id="step3" class="loading-step">⏳ Building L4 detailed map...</div>
+                <div id="step4" class="loading-step">⏳ Generating SOP document...</div>
+                <div id="step5" class="loading-step">⏳ Analyzing automation potential...</div>
+                <div id="step6" class="loading-step">⏳ Identifying AI opportunities...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="delete-modal-hidden" style="position:fixed; inset:0; z-index:2000; display:flex; align-items:center; justify-content:center;">
+        <div id="deleteModalBackdrop" style="position:absolute; inset:0; background:rgba(0,0,0,0.45); backdrop-filter:blur(2px);"></div>
+        <div style="position:relative; background:white; border-radius:20px; padding:36px 32px 28px; max-width:420px; width:90%; box-shadow:0 24px 60px rgba(0,0,0,0.18); text-align:center; animation: modalIn 0.2s ease;">
+            <div style="width:60px; height:60px; border-radius:50%; background:#FEE2E2; display:flex; align-items:center; justify-content:center; margin:0 auto 20px;">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+                </svg>
+            </div>
+            <h3 style="font-size:18px; font-weight:700; color:var(--gray-900); margin-bottom:8px;">Delete Recording?</h3>
+            <p style="font-size:14px; color:var(--gray-500); line-height:1.6; margin-bottom:28px;">This will permanently delete the recording and its generated report. This action <strong style="color:var(--gray-700);">cannot be undone</strong>.</p>
+            <div style="display:flex; gap:12px; justify-content:center;">
+                <button id="deleteModalCancel" style="flex:1; padding:11px 0; border-radius:10px; border:1.5px solid var(--gray-200); background:white; font-size:14px; font-weight:600; color:var(--gray-600); cursor:pointer; transition:all 0.2s;">
+                    Cancel
+                </button>
+                <button id="deleteModalConfirm" style="flex:1; padding:11px 0; border-radius:10px; border:none; background:linear-gradient(135deg,#EF4444,#DC2626); color:white; font-size:14px; font-weight:600; cursor:pointer; transition:all 0.2s; box-shadow:0 2px 8px rgba(239,68,68,0.3);">
+                    Delete
+                </button>
             </div>
         </div>
     </div>
 
     <div class="toast-container" id="toastContainer"></div>
 
+    <style>
+        .delete-modal-hidden { display: none !important; }
+        @keyframes modalIn {
+            from { opacity:0; transform:scale(0.93) translateY(12px); }
+            to   { opacity:1; transform:scale(1) translateY(0); }
+        }
+    </style>
+
+    <script>
+        // Greeting based on time of day
+        (function () {
+            const h = new Date().getHours();
+            const greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+            const el = document.getElementById('pageGreeting');
+            if (el) {
+                const name = el.getAttribute('data-name') || '';
+                el.textContent = greeting + (name ? ', ' + name : '');
+            }
+
+            // Date display
+            const dateEl = document.getElementById('topbarDate');
+            if (dateEl) {
+                const now = new Date();
+                dateEl.textContent = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+            }
+        })();
+
+        // Patch activityCount to use inner span
+        const _origActivityCount = document.getElementById('activityCount');
+    </script>
     <script src="/static/js/recorder.js"></script>
     <script src="/static/js/dashboard.js"></script>
+    <script>
+        function formatDur(s) {
+            if (!s) return '—';
+            const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+            return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+        }
+        function escHtml(t) {
+            return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        // Override loadRecordings from dashboard.js to use the new table UI
+        const _origLoad = window.loadRecordings;
+        window.loadRecordings = async function () {
+            try {
+                const resp = await fetch('/api/recordings');
+                const recordings = await resp.json();
+
+                // Update stat counters
+                document.getElementById('totalRecordings').textContent = recordings.length;
+                document.getElementById('completedRecordings').textContent = recordings.filter(r => r.status === 'completed').length;
+
+                // Count total activities from completed recordings
+                let totalAct = 0;
+                recordings.forEach(r => { if (r.activity_count) totalAct += r.activity_count; });
+                const actEl = document.getElementById('totalActivities');
+                if (actEl) actEl.textContent = totalAct || '—';
+
+                // Render new table
+                const tbody = document.getElementById('recordingsTbody');
+                const table = document.getElementById('recordingsTable');
+                const empty = document.getElementById('emptyState');
+
+                if (!recordings.length) {
+                    if (table) table.style.display = 'none';
+                    if (empty) empty.style.display = 'block';
+                    return;
+                }
+                if (table) table.style.display = 'table';
+                if (empty) empty.style.display = 'none';
+                if (!tbody) return;
+
+                tbody.innerHTML = recordings.map(r => {
+                    const initial = (r.title || 'R')[0].toUpperCase();
+                    const date = r.started_at ? new Date(r.started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+                    const time = r.started_at ? new Date(r.started_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+                    const dur = formatDur(r.duration_seconds);
+                    const st = r.status || 'idle';
+                    const stLabel = st.charAt(0).toUpperCase() + st.slice(1);
+                    const canView = r.status === 'completed';
+                    return `<tr>
+                        <td>
+                            <div class="rec-title-cell">
+                                <div class="rec-thumb"><span class="rec-thumb-text">${initial}</span></div>
+                                <div>
+                                    <div class="rec-name">${escHtml(r.title || 'Untitled')}</div>
+                                    <div class="rec-date">${time ? time + ' · ' : ''}${date}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="badge-v2 ${st}"><span class="badge-v2-dot"></span>${stLabel}</span></td>
+                        <td><span class="duration-chip">${dur}</span></td>
+                        <td style="color:var(--gray-500);font-size:12px;">${date}</td>
+                        <td>
+                            <div class="rec-actions">
+                                ${canView ? `<a href="/report/${r.id}" class="btn-view"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>View Report</a>` : ''}
+                                ${canView ? `<button class="btn-icon" onclick="exportReport(${r.id})" title="Export"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>` : ''}
+                                <button class="btn-icon" onclick="deleteRecording(${r.id})" title="Delete recording"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
+                            </div>
+                        </td>
+                    </tr>`;
+                }).join('');
+            } catch (err) {
+                console.error('Failed to load recordings:', err);
+            }
+        };
+
+        // Delete confirmation modal
+        let _pendingDeleteId = null;
+        const deleteModal    = document.getElementById('deleteModal');
+        const deleteConfirm  = document.getElementById('deleteModalConfirm');
+        const deleteCancel   = document.getElementById('deleteModalCancel');
+        const deleteBackdrop = document.getElementById('deleteModalBackdrop');
+
+        function openDeleteModal(id) {
+            _pendingDeleteId = id;
+            deleteModal.classList.remove('delete-modal-hidden');
+        }
+        function closeDeleteModal() {
+            deleteModal.classList.add('delete-modal-hidden');
+            _pendingDeleteId = null;
+        }
+
+        deleteCancel.addEventListener('click', closeDeleteModal);
+        deleteBackdrop.addEventListener('click', closeDeleteModal);
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDeleteModal(); });
+
+        deleteConfirm.addEventListener('click', async () => {
+            const id = _pendingDeleteId;
+            closeDeleteModal();
+            try {
+                const resp = await fetch(`/api/recordings/${id}`, { method: 'DELETE' });
+                if (!resp.ok) throw new Error('Failed to delete');
+                showToast('Recording deleted.', 'success');
+                window.loadRecordings();
+            } catch (err) {
+                showToast('Could not delete recording.', 'error');
+            }
+        });
+
+        window.deleteRecording = openDeleteModal;
+
+        // Re-run after override is in place
+        window.loadRecordings();
+    </script>
 </body>
 </html>

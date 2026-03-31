@@ -113,25 +113,74 @@
                 </div>
             </div>
 
-            <!-- Timeline View (NEW - PM feedback) -->
+            <!-- Timeline View -->
             <div id="tab-timeline" class="tab-content">
-                <div class="card">
-                    <h3>Process Timeline</h3>
+                <!-- Summary Stats -->
+                <div class="tl-stats-row" id="tlStatsRow"></div>
+
+                <!-- Phase Time Bars -->
+                <div class="tl-section-card" id="tlPhaseBars" style="display:none;">
+                    <div class="tl-section-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
+                        Time Spent per Phase
+                    </div>
+                    <div id="tlPhaseChart"></div>
+                </div>
+
+                <!-- Full Activity Log -->
+                <div class="tl-section-card">
+                    <div class="tl-section-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        Full Activity Log — Everything the user did
+                    </div>
+                    <div id="tlActivityLog"></div>
+                </div>
+
+                <!-- Flowchart Timeline -->
+                <div class="tl-section-card">
+                    <div class="tl-section-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        Process Step Timeline
+                    </div>
                     <div id="timelineContent" class="timeline"></div>
                 </div>
             </div>
 
             <!-- Flowchart -->
             <div id="tab-flowchart" class="tab-content">
-                <div class="mermaid-container">
-                    <h3 style="margin-bottom:16px;">Process Flowchart</h3>
-                    <div id="mermaidDiagram"></div>
+                <div class="flowchart-card">
+                    <div class="flowchart-header">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <div class="flowchart-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2.5"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="3" width="6" height="6" rx="1"/><rect x="9" y="15" width="6" height="6" rx="1"/><line x1="6" y1="9" x2="6" y2="12"/><line x1="18" y1="9" x2="18" y2="12"/><line x1="6" y1="12" x2="12" y2="12"/><line x1="18" y1="12" x2="12" y2="12"/><line x1="12" y1="12" x2="12" y2="15"/></svg>
+                            </div>
+                            <div>
+                                <h3 style="font-size:17px;font-weight:700;color:var(--gray-900);margin:0;">Screen Navigation Flowchart</h3>
+                                <p style="font-size:12px;color:var(--gray-400);margin:2px 0 0;">Every screen visited and the path between them</p>
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn btn-outline btn-sm" onclick="zoomFlowchart(1.2)">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                                Zoom In
+                            </button>
+                            <button class="btn btn-outline btn-sm" onclick="zoomFlowchart(0.8)">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                                Zoom Out
+                            </button>
+                            <button class="btn btn-outline btn-sm" onclick="resetZoom()">Reset</button>
+                        </div>
+                    </div>
+                    <div class="flowchart-body" id="flowchartBody">
+                        <div id="mermaidDiagram" style="transform-origin:top center;transition:transform 0.2s;"></div>
+                    </div>
+                    <div id="flowchartRaw" style="display:none;"></div>
                 </div>
             </div>
 
             <!-- SOP -->
             <div id="tab-sop" class="tab-content">
-                <div class="sop-document" id="sopContent"></div>
+                <div id="sopContent"></div>
             </div>
 
             <!-- Automation -->
@@ -204,7 +253,20 @@
     let complianceMode = false;
     let annotationMode = false;
 
-    mermaid.initialize({ startOnLoad: false, theme: 'default' });
+    mermaid.initialize({
+        startOnLoad: false,
+        theme: 'base',
+        themeVariables: {
+            primaryColor: '#EDE9FE',
+            primaryTextColor: '#3730A3',
+            primaryBorderColor: '#818CF8',
+            lineColor: '#6366F1',
+            secondaryColor: '#DBEAFE',
+            tertiaryColor: '#F0FDF4',
+            fontSize: '14px',
+        },
+        flowchart: { curve: 'basis', padding: 20 },
+    });
 
     function switchTab(tabName) {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -295,89 +357,129 @@
         // L3
         if (data.l3_process_map) renderL3Map(data.l3_process_map);
 
-        // L4
+        // L4 — grouped by L3 phase
         if (data.l4_process_map && data.l4_process_map.steps) {
-            let l4Html = '<table class="rec-table"><tr><th>ID</th><th>Parent</th><th>Step</th><th>Description</th><th>Action</th><th>System</th><th>Time</th></tr>';
+            const l3Phases = {};
+            // Build L3 name lookup from L3 data
+            const l3NameMap = {};
+            if (data.l3_process_map && data.l3_process_map.steps) {
+                data.l3_process_map.steps.forEach(s => { l3NameMap[s.id] = s.name; });
+            }
+
+            // Group L4 steps by parent L3
             data.l4_process_map.steps.forEach(step => {
-                l4Html += `<tr class="l4-row" data-step-id="${step.id}">
-                    <td>${step.id}</td>
-                    <td><span class="badge badge-info">${step.parent_l3}</span></td>
-                    <td><strong>${step.name}</strong></td>
-                    <td>${step.description}</td>
-                    <td><span class="badge badge-warning">${step.action_type}</span></td>
-                    <td>${step.system}</td>
-                    <td>${step.estimated_time_seconds}s</td>
-                </tr>`;
+                const key = step.parent_l3 || 'Other';
+                if (!l3Phases[key]) l3Phases[key] = [];
+                l3Phases[key].push(step);
             });
-            l4Html += '</table>';
+
+            const ACTION_COLORS = {
+                click: '#6366F1', select: '#8B5CF6', data_entry: '#0EA5E9',
+                navigation: '#10B981', login: '#F59E0B', submit: '#EF4444',
+                review: '#06B6D4', decision: '#F97316', verify: '#84CC16',
+                upload: '#EC4899', download: '#14B8A6'
+            };
+            const PHASE_COLORS = ['#4F46E5','#0EA5E9','#10B981','#F59E0B','#EF4444','#8B5CF6'];
+            const phaseKeys = Object.keys(l3Phases);
+
+            let l4Html = `<div class="l4-process-header">
+                <span class="l4-ph-title">${esc(data.l4_process_map.process_name || '')}</span>
+                <span class="l4-ph-count">${data.l4_process_map.steps.length} steps across ${phaseKeys.length} phases</span>
+            </div>`;
+
+            phaseKeys.forEach((phaseKey, pi) => {
+                const phaseColor = PHASE_COLORS[pi % PHASE_COLORS.length];
+                const phaseName = l3NameMap[phaseKey] || phaseKey;
+                const phaseSteps = l3Phases[phaseKey];
+                const phaseTotalSecs = phaseSteps.reduce((s, st) => s + (st.estimated_time_seconds || 0), 0);
+
+                l4Html += `
+                <div class="l4-phase-group">
+                    <div class="l4-phase-header" style="border-left-color:${phaseColor};">
+                        <span class="l4-phase-badge" style="background:${phaseColor};">${esc(phaseKey)}</span>
+                        <div class="l4-phase-info">
+                            <span class="l4-phase-name">${esc(phaseName)}</span>
+                            <span class="l4-phase-meta">${phaseSteps.length} steps · ${formatTime(phaseTotalSecs)}</span>
+                        </div>
+                    </div>
+                    <div class="l4-steps-list">`;
+
+                phaseSteps.forEach((step, si) => {
+                    const actColor = ACTION_COLORS[step.action_type] || '#64748B';
+                    const hasExtras = (step.detailed_actions && step.detailed_actions.length)
+                        || step.pre_condition || step.post_condition || step.error_handling;
+
+                    l4Html += `
+                    <div class="l4-step-row" data-step-id="${step.id}">
+                        <div class="l4-step-connector">
+                            <div class="l4-step-dot" style="background:${phaseColor};"></div>
+                            ${si < phaseSteps.length - 1 ? '<div class="l4-step-line"></div>' : ''}
+                        </div>
+                        <div class="l4-step-card">
+                            <div class="l4-step-top">
+                                <span class="l4-step-id">${esc(step.id)}</span>
+                                <span class="l4-action-badge" style="background:${actColor}20;color:${actColor};border-color:${actColor}40;">${esc(step.action_type || '')}</span>
+                                <strong class="l4-step-name">${esc(step.name)}</strong>
+                                <span class="l4-step-time">${step.estimated_time_seconds}s</span>
+                            </div>
+                            <p class="l4-step-desc">${esc(step.description || '')}</p>
+                            <div class="l4-step-sys-row">
+                                ${step.system ? `<span class="l4-sys-chip"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>${esc(step.system)}</span>` : ''}
+                                ${step.screen ? `<span class="l4-screen-chip"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4"/></svg>${esc(step.screen)}</span>` : ''}
+                            </div>
+                            ${hasExtras ? `
+                            <div class="l4-expand-section">
+                                <button class="l4-expand-btn" onclick="toggleL4Details(this)">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                                    Show details
+                                </button>
+                                <div class="l4-details" style="display:none;">
+                                    ${step.detailed_actions && step.detailed_actions.length ? `
+                                    <div class="l4-detail-block">
+                                        <div class="l4-detail-label">Micro Actions</div>
+                                        <ol class="l4-micro-list">${step.detailed_actions.map(a => `<li>${esc(a)}</li>`).join('')}</ol>
+                                    </div>` : ''}
+                                    <div class="l4-conditions-row">
+                                        ${step.pre_condition ? `<div class="l4-cond l4-pre"><span>Pre:</span> ${esc(step.pre_condition)}</div>` : ''}
+                                        ${step.post_condition ? `<div class="l4-cond l4-post"><span>Post:</span> ${esc(step.post_condition)}</div>` : ''}
+                                    </div>
+                                    ${step.error_handling ? `<div class="l4-cond l4-err"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg> <span>Error:</span> ${esc(step.error_handling)}</div>` : ''}
+                                </div>
+                            </div>` : ''}
+                        </div>
+                    </div>`;
+                });
+
+                l4Html += '</div></div>';
+            });
+
             document.getElementById('l4MapContent').innerHTML = l4Html;
 
-            // Add click handlers for annotations
-            document.querySelectorAll('.l4-row').forEach(row => {
-                row.addEventListener('click', () => {
-                    if (!annotationMode) return;
+            // Annotation click handler
+            document.querySelectorAll('.l4-step-row').forEach(row => {
+                row.addEventListener('click', (e) => {
+                    if (!annotationMode || e.target.closest('.l4-expand-btn')) return;
                     const stepId = row.dataset.stepId;
                     const note = prompt(`Add annotation for ${stepId}:`);
                     if (note) {
-                        const cell = row.querySelector('td:nth-child(4)');
-                        cell.innerHTML += ` <span class="compliance-tag standard" title="User annotation">${note}</span>`;
+                        row.querySelector('.l4-step-name').insertAdjacentHTML('afterend', ` <span class="compliance-tag standard">${note}</span>`);
                         showToast('Annotation added!');
                     }
                 });
             });
         }
 
-        // Timeline (NEW)
-        if (data.l4_process_map && data.l4_process_map.steps) {
-            let tlHtml = '';
-            let cumTime = 0;
-            data.l4_process_map.steps.forEach(step => {
-                const timeStr = formatTime(cumTime);
-                tlHtml += `
-                    <div class="timeline-item">
-                        <div class="tl-time">${timeStr}</div>
-                        <div class="tl-title">${step.name}</div>
-                        <div class="tl-desc">${step.description} (${step.system}) - ${step.estimated_time_seconds}s</div>
-                    </div>`;
-                cumTime += step.estimated_time_seconds;
-            });
-            tlHtml += `<div class="timeline-item"><div class="tl-time">${formatTime(cumTime)}</div><div class="tl-title" style="color:var(--success);">Process Complete</div><div class="tl-desc">Total estimated time: ${cumTime}s</div></div>`;
-            document.getElementById('timelineContent').innerHTML = tlHtml;
-        }
+        // Timeline — step graph + stats/activity log
+        await renderTimeline(data);
 
         // Mermaid
         if (data.mermaid_diagram) {
-            const diagramDiv = document.getElementById('mermaidDiagram');
-            try {
-                const { svg } = await mermaid.render('mermaid-svg-' + Date.now(), data.mermaid_diagram);
-                diagramDiv.innerHTML = svg;
-            } catch(e) {
-                console.warn('Mermaid render failed, showing raw diagram:', e);
-                diagramDiv.innerHTML = '<pre style="text-align:left; background:var(--gray-50); padding:16px; border-radius:8px; font-size:13px;">' + data.mermaid_diagram + '</pre>';
-            }
+            await renderFlowchart(data.mermaid_diagram);
         }
 
         // SOP
         if (data.sop) {
-            const sopEl = document.getElementById('sopContent');
-            sopEl.innerHTML = marked.parse(data.sop);
-            
-            // Auto-wrap images in <details> if they aren't already (Fixes old/existing reports)
-            sopEl.querySelectorAll('img').forEach(img => {
-                if (!img.closest('details')) {
-                    const details = document.createElement('details');
-                    details.className = 'sop-auto-dropdown';
-                    const summary = document.createElement('summary');
-                    summary.innerHTML = '📸 View Step Screenshot';
-                    
-                    const div = document.createElement('div');
-                    
-                    img.parentNode.insertBefore(details, img);
-                    details.appendChild(summary);
-                    details.appendChild(div);
-                    div.appendChild(img);
-                }
-            });
+            renderSOP(data.sop);
         }
 
         // Automation Recommendations (with possibility scores)
@@ -428,35 +530,85 @@
 
     function renderL3Map(l3Data) {
         if (!l3Data || !l3Data.steps) return;
-        let l3Html = '';
-        l3Data.steps.forEach((step, i) => {
-            const complianceTag = complianceMode
-                ? `<div style="margin-top:6px;"><span class="compliance-tag ${i === 0 || i === 2 ? 'critical' : 'standard'}" onclick="event.stopPropagation(); toggleStepCompliance(this)">${i === 0 || i === 2 ? 'Compliance Critical' : 'Standard'}</span></div>`
-                : '';
-            l3Html += `
-                <div class="process-step">
-                    <div class="step-circle">${i + 1}</div>
-                    <div class="step-name">${step.name}</div>
-                    <div class="step-desc">${step.description || ''}</div>
-                    ${complianceTag}
-                </div>`;
-        });
-        document.getElementById('l3MapContent').innerHTML = l3Html;
 
-        let detailHtml = `<p style="margin-bottom:12px;"><strong>Process:</strong> ${l3Data.process_name || ''} | <strong>Owner:</strong> ${l3Data.process_owner || ''}</p>`;
-        detailHtml += '<table class="rec-table"><tr><th>ID</th><th>Step</th><th>Description</th><th>Inputs</th><th>Outputs</th><th>Systems</th></tr>';
-        l3Data.steps.forEach(step => {
-            detailHtml += `<tr>
-                <td>${step.id}</td>
-                <td><strong>${step.name}</strong></td>
-                <td>${step.description}</td>
-                <td>${(step.inputs || []).join(', ')}</td>
-                <td>${(step.outputs || []).join(', ')}</td>
-                <td>${(step.systems || []).join(', ')}</td>
-            </tr>`;
+        const RISK_COLORS = { low: '#10B981', medium: '#F59E0B', high: '#EF4444' };
+        const STEP_COLORS = ['#4F46E5','#0EA5E9','#10B981','#F59E0B','#EF4444','#8B5CF6','#06B6D4','#84CC16'];
+
+        // Process header
+        let l3Html = `
+        <div class="l3-header-bar">
+            <div class="l3-header-info">
+                <div class="l3-header-title">${esc(l3Data.process_name || 'Process')}</div>
+                ${l3Data.objective ? `<div class="l3-header-obj">${esc(l3Data.objective)}</div>` : ''}
+            </div>
+            <div class="l3-header-meta">
+                ${l3Data.process_owner ? `<span class="l3-meta-chip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${esc(l3Data.process_owner)}</span>` : ''}
+                <span class="l3-meta-chip">${l3Data.steps.length} Phases</span>
+            </div>
+        </div>`;
+
+        // Step cards
+        l3Html += '<div class="l3-cards">';
+        l3Data.steps.forEach((step, i) => {
+            const color = STEP_COLORS[i % STEP_COLORS.length];
+            const riskColor = RISK_COLORS[step.risk_level] || '#64748B';
+            const complianceTag = complianceMode
+                ? `<span class="compliance-tag ${step.risk_level === 'high' ? 'critical' : 'standard'}" onclick="event.stopPropagation(); toggleStepCompliance(this)">${step.risk_level === 'high' ? 'Compliance Critical' : 'Standard'}</span>`
+                : '';
+
+            l3Html += `
+            <div class="l3-step-card" style="--l3-color:${color};">
+                <div class="l3-step-top">
+                    <div class="l3-step-num" style="background:${color};">${i+1}</div>
+                    <div class="l3-step-head">
+                        <div class="l3-step-id-label">${esc(step.id)}</div>
+                        <h4 class="l3-step-name">${esc(step.name)}</h4>
+                        <p class="l3-step-desc">${esc(step.description || '')}</p>
+                    </div>
+                    <div class="l3-step-badges">
+                        ${step.risk_level ? `<span class="l3-risk-badge" style="background:${riskColor}15;color:${riskColor};border-color:${riskColor}40;">${step.risk_level} risk</span>` : ''}
+                        ${step.time_estimate ? `<span class="l3-time-badge">${esc(step.time_estimate)}</span>` : ''}
+                        ${complianceTag}
+                    </div>
+                </div>
+                <div class="l3-step-grid">
+                    ${step.inputs && step.inputs.length ? `
+                    <div class="l3-io-cell l3-io-in">
+                        <div class="l3-io-lbl">⬇ Inputs</div>
+                        <ul>${step.inputs.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+                    </div>` : ''}
+                    ${step.outputs && step.outputs.length ? `
+                    <div class="l3-io-cell l3-io-out">
+                        <div class="l3-io-lbl">⬆ Outputs</div>
+                        <ul>${step.outputs.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+                    </div>` : ''}
+                    ${step.systems && step.systems.length ? `
+                    <div class="l3-io-cell l3-io-sys">
+                        <div class="l3-io-lbl">🖥 Systems</div>
+                        <ul>${step.systems.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+                    </div>` : ''}
+                </div>
+                ${(step.responsible_team || step.compliance_note) ? `
+                <div class="l3-step-footer">
+                    ${step.responsible_team ? `<span class="l3-footer-item"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> ${esc(step.responsible_team)}</span>` : ''}
+                    ${step.compliance_note ? `<span class="l3-footer-item l3-footer-compliance"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> ${esc(step.compliance_note)}</span>` : ''}
+                </div>` : ''}
+            </div>
+            ${i < l3Data.steps.length - 1 ? `<div class="l3-connector"><svg width="24" height="32" viewBox="0 0 24 32"><line x1="12" y1="0" x2="12" y2="24" stroke="${color}" stroke-width="2" stroke-dasharray="4"/><polyline points="6,20 12,28 18,20" fill="none" stroke="${color}" stroke-width="2"/></svg></div>` : ''}`;
         });
-        detailHtml += '</table>';
-        document.getElementById('l3Details').innerHTML = detailHtml;
+        l3Html += '</div>';
+
+        document.getElementById('l3MapContent').innerHTML = l3Html;
+        document.getElementById('l3Details').innerHTML = '';
+    }
+
+    function toggleL4Details(btn) {
+        const det = btn.nextElementSibling;
+        const open = det.style.display !== 'none';
+        det.style.display = open ? 'none' : 'block';
+        btn.innerHTML = open
+            ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg> Show details`
+            : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg> Hide details`;
     }
 
     function toggleStepCompliance(el) {
@@ -529,7 +681,917 @@
         }
     }
 
+    let _flowchartScale = 1;
+    async function renderFlowchart(diagram) {
+        const diagramDiv = document.getElementById('mermaidDiagram');
+        const rawDiv = document.getElementById('flowchartRaw');
+        try {
+            // Clean up common AI mistakes in mermaid syntax
+            let cleaned = diagram
+                .replace(/graph\s+TD\s*\n\s*subgraph/g, 'graph TD\nsubgraph')
+                .replace(/;\s*\n/g, '\n')
+                .trim();
+            const { svg } = await mermaid.render('mermaid-svg-' + Date.now(), cleaned);
+            diagramDiv.innerHTML = svg;
+            // Make SVG responsive
+            const svgEl = diagramDiv.querySelector('svg');
+            if (svgEl) {
+                svgEl.style.maxWidth = '100%';
+                svgEl.style.height = 'auto';
+                svgEl.removeAttribute('height');
+            }
+        } catch(e) {
+            console.warn('Mermaid render failed:', e);
+            diagramDiv.innerHTML = '';
+            rawDiv.style.display = 'block';
+            rawDiv.innerHTML = `
+                <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:20px;">
+                    <p style="font-size:12px;color:var(--gray-400);margin-bottom:12px;font-weight:600;">RAW DIAGRAM SOURCE</p>
+                    <pre style="font-size:12px;color:var(--gray-700);white-space:pre-wrap;word-break:break-word;">${diagram}</pre>
+                </div>`;
+        }
+    }
+
+    function zoomFlowchart(factor) {
+        _flowchartScale = Math.min(3, Math.max(0.3, _flowchartScale * factor));
+        document.getElementById('mermaidDiagram').style.transform = `scale(${_flowchartScale})`;
+    }
+    function resetZoom() {
+        _flowchartScale = 1;
+        document.getElementById('mermaidDiagram').style.transform = 'scale(1)';
+    }
+
+    function renderSOP(sop) {
+        const el = document.getElementById('sopContent');
+        // Try structured JSON first, fallback to legacy markdown
+        let data = null;
+        if (typeof sop === 'object' && sop !== null && sop.steps) {
+            data = sop;
+        } else if (typeof sop === 'string') {
+            try { data = JSON.parse(sop); } catch(e) { data = null; }
+        }
+
+        if (!data || !data.steps) {
+            // Legacy markdown fallback
+            el.className = 'sop-document';
+            el.innerHTML = marked.parse(typeof sop === 'string' ? sop : JSON.stringify(sop));
+            return;
+        }
+
+        const accentColors = ['#4F46E5','#0EA5E9','#10B981','#F59E0B','#EF4444','#8B5CF6','#06B6D4','#84CC16'];
+
+        let html = `
+        <div class="sop-wrap">
+            <!-- Header -->
+            <div class="sop-header">
+                <div class="sop-header-left">
+                    <div class="sop-badge">SOP</div>
+                    <div>
+                        <h1 class="sop-title">${esc(data.title || 'Standard Operating Procedure')}</h1>
+                        ${data.purpose ? `<p class="sop-purpose">${esc(data.purpose)}</p>` : ''}
+                    </div>
+                </div>
+                <div class="sop-meta-chips">
+                    <span class="sop-chip sop-chip-blue">${data.steps.length} Steps</span>
+                </div>
+            </div>
+
+            <!-- Info Row -->
+            ${(data.scope || (data.prerequisites && data.prerequisites.length)) ? `
+            <div class="sop-info-row">
+                ${data.scope ? `
+                <div class="sop-info-box">
+                    <div class="sop-info-label">📋 Scope</div>
+                    <div class="sop-info-text">${esc(data.scope)}</div>
+                </div>` : ''}
+                ${data.prerequisites && data.prerequisites.length ? `
+                <div class="sop-info-box">
+                    <div class="sop-info-label">✅ Prerequisites</div>
+                    <ul class="sop-prereq-list">
+                        ${data.prerequisites.map(p => `<li>${esc(p)}</li>`).join('')}
+                    </ul>
+                </div>` : ''}
+            </div>` : ''}
+
+            <!-- Steps -->
+            <div class="sop-steps-wrap">
+                ${data.steps.map((step, i) => {
+                    const color = accentColors[i % accentColors.length];
+                    return `
+                    <div class="sop-step-card" style="--step-color:${color}">
+                        <div class="sop-step-left">
+                            <div class="sop-step-num" style="background:${color};">${step.step || i+1}</div>
+                            ${i < data.steps.length - 1 ? '<div class="sop-step-line"></div>' : ''}
+                        </div>
+                        <div class="sop-step-body">
+                            <!-- Step Header -->
+                            <div class="sop-step-header">
+                                <h3 class="sop-step-title">${esc(step.title || 'Step ' + (i+1))}</h3>
+                                <div class="sop-step-tags">
+                                    ${step.role ? `<span class="sop-tag sop-tag-purple"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${esc(step.role)}</span>` : ''}
+                                    ${step.system ? `<span class="sop-tag sop-tag-blue"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>${esc(step.system)}</span>` : ''}
+                                </div>
+                            </div>
+
+                            <!-- Time estimate -->
+                            ${step.estimated_time ? `<span class="sop-time-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${esc(step.estimated_time)}</span>` : ''}
+
+                            <!-- Main Action -->
+                            <p class="sop-step-action">${esc(step.action || '')}</p>
+
+                            <!-- Sub Steps -->
+                            ${step.sub_steps && step.sub_steps.length ? `
+                            <div class="sop-substeps">
+                                <div class="sop-substeps-label">How to do it:</div>
+                                <ol class="sop-substeps-list">
+                                    ${step.sub_steps.map(s => `<li>${esc(s)}</li>`).join('')}
+                                </ol>
+                            </div>` : ''}
+
+                            <!-- Screenshot (hidden by default, toggle button) -->
+                            ${step.screenshot_url ? `
+                            <div class="sop-screenshot-wrap">
+                                <button class="sop-screenshot-toggle" onclick="toggleSopScreenshot(this)">
+                                    <svg class="sop-eye-open" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                    <svg class="sop-eye-off" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                                    <span class="sop-toggle-label">Show Screenshot</span>
+                                </button>
+                                <img src="${step.screenshot_url}" alt="Step ${step.step || i+1} screenshot" class="sop-screenshot-img" style="display:none;" onclick="openScreenshot(this.src)" />
+                            </div>` : ''}
+
+                            <!-- Inputs / Outputs -->
+                            ${((step.inputs && step.inputs.length) || (step.outputs && step.outputs.length)) ? `
+                            <div class="sop-io-row">
+                                ${step.inputs && step.inputs.length ? `
+                                <div class="sop-io-box sop-io-in">
+                                    <div class="sop-io-label">⬇ Inputs</div>
+                                    ${step.inputs.map(x => `<span class="sop-io-chip">${esc(x)}</span>`).join('')}
+                                </div>` : ''}
+                                ${step.outputs && step.outputs.length ? `
+                                <div class="sop-io-box sop-io-out">
+                                    <div class="sop-io-label">⬆ Outputs</div>
+                                    ${step.outputs.map(x => `<span class="sop-io-chip">${esc(x)}</span>`).join('')}
+                                </div>` : ''}
+                            </div>` : ''}
+
+                            <!-- Decision Point -->
+                            ${step.decision_point ? `
+                            <div class="sop-callout sop-callout-decision">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 22 20 2 20"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                <div><strong>Decision Point</strong><br>${esc(step.decision_point)}</div>
+                            </div>` : ''}
+
+                            <!-- Tip -->
+                            ${step.tip ? `
+                            <div class="sop-callout sop-callout-tip">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                <div><strong>Tip</strong><br>${esc(step.tip)}</div>
+                            </div>` : ''}
+
+                            <!-- Warning -->
+                            ${step.warning ? `
+                            <div class="sop-callout sop-callout-warning">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                <div><strong>Warning</strong><br>${esc(step.warning)}</div>
+                            </div>` : ''}
+
+                            <!-- Tools needed + Common mistakes -->
+                            ${((step.tools_needed && step.tools_needed.length) || (step.common_mistakes && step.common_mistakes.length)) ? `
+                            <div class="sop-extras-row">
+                                ${step.tools_needed && step.tools_needed.length ? `
+                                <div class="sop-extra-box">
+                                    <div class="sop-extra-label">🔧 Tools / Access Required</div>
+                                    <ul class="sop-extra-list">${step.tools_needed.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+                                </div>` : ''}
+                                ${step.common_mistakes && step.common_mistakes.length ? `
+                                <div class="sop-extra-box sop-extra-mistakes">
+                                    <div class="sop-extra-label">⚠️ Common Mistakes</div>
+                                    <ul class="sop-extra-list">${step.common_mistakes.map(m => `<li>${esc(m)}</li>`).join('')}</ul>
+                                </div>` : ''}
+                            </div>` : ''}
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>
+
+            <!-- Expected Outcome -->
+            ${data.expected_outcome ? `
+            <div class="sop-outcome">
+                <div class="sop-outcome-icon">✅</div>
+                <div>
+                    <div class="sop-outcome-label">Expected Outcome</div>
+                    <div class="sop-outcome-text">${esc(data.expected_outcome)}</div>
+                </div>
+            </div>` : ''}
+        </div>`;
+
+        el.innerHTML = html;
+    }
+
+    function esc(str) {
+        return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function openScreenshot(src) {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:24px;';
+        overlay.innerHTML = `<img src="${src}" style="max-width:100%;max-height:100%;border-radius:8px;box-shadow:0 24px 60px rgba(0,0,0,0.5);">`;
+        overlay.addEventListener('click', () => overlay.remove());
+        document.body.appendChild(overlay);
+    }
+
+    function toggleTlThumb(btn) {
+        const img = btn.nextElementSibling;
+        const shown = !img.classList.contains('tl-log-thumb-hidden');
+        if (shown) {
+            img.classList.add('tl-log-thumb-hidden');
+            btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> Photo`;
+        } else {
+            img.classList.remove('tl-log-thumb-hidden');
+            btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg> Hide`;
+        }
+    }
+
+    function toggleSopScreenshot(btn) {
+        const img = btn.nextElementSibling;
+        const shown = img.style.display !== 'none';
+        img.style.display = shown ? 'none' : 'block';
+        btn.querySelector('.sop-toggle-label').textContent = shown ? 'Show Screenshot' : 'Hide Screenshot';
+        const eyeIcon = btn.querySelector('.sop-eye-open');
+        const eyeOffIcon = btn.querySelector('.sop-eye-off');
+        if (eyeIcon) eyeIcon.style.display = shown ? '' : 'none';
+        if (eyeOffIcon) eyeOffIcon.style.display = shown ? 'none' : '';
+    }
+
+    // ── Activity type metadata ──────────────────────────────────────────────
+    const ACT_META = {
+        click:            { icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 3l14 9-7 1-3 7z"/></svg>`,               label: 'Click',           color: '#6366F1', bg: '#EEF2FF' },
+        type:             { icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3l-4 4-4-4"/></svg>`, label: 'Type', color: '#0EA5E9', bg: '#E0F2FE' },
+        scroll:           { icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>`, label: 'Scroll', color: '#64748B', bg: '#F1F5F9' },
+        navigate:         { icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`, label: 'Navigate', color: '#10B981', bg: '#D1FAE5' },
+        screen_change:    { icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`, label: 'Screen Change', color: '#8B5CF6', bg: '#EDE9FE' },
+        app_switch:       { icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>`, label: 'App Switch', color: '#F59E0B', bg: '#FEF3C7' },
+        keyboard_shortcut:{ icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="7" width="20" height="14" rx="2"/><line x1="6" y1="11" x2="6" y2="11"/><line x1="10" y1="11" x2="10" y2="11"/><line x1="14" y1="11" x2="14" y2="11"/><line x1="18" y1="11" x2="18" y2="11"/><line x1="6" y1="15" x2="18" y2="15"/></svg>`, label: 'Shortcut', color: '#EC4899', bg: '#FCE7F3' },
+        change:           { icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>`, label: 'Change', color: '#F97316', bg: '#FFEDD5' },
+        screenshot:       { icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`, label: 'Screenshot', color: '#6366F1', bg: '#EEF2FF' },
+        screen_leave:     { icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`, label: 'Left App', color: '#94A3B8', bg: '#F8FAFC' },
+        screen_return:    { icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>`, label: 'Returned', color: '#22C55E', bg: '#F0FDF4' },
+    };
+    function getActMeta(type) {
+        return ACT_META[type] || { icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/></svg>`, label: type, color: '#64748B', bg: '#F1F5F9' };
+    }
+
+    async function renderTimeline(data) {
+        const steps = (data.l4_process_map && data.l4_process_map.steps) || [];
+        const l3Steps = (data.l3_process_map && data.l3_process_map.steps) || [];
+        const totalEstSecs = steps.reduce((s, st) => s + (st.estimated_time_seconds || 0), 0);
+
+        // ── Fetch real activity log ─────────────────────────────────────────
+        let activities = [];
+        try {
+            const resp = await fetch(`/api/recordings/${RECORDING_ID}/activities`);
+            if (resp.ok) activities = await resp.json();
+        } catch(e) {}
+
+        // ── Compute real stats ──────────────────────────────────────────────
+        let totalRealSecs = 0;
+        const screensVisited = new Set();
+        const appsUsed = new Set();
+        if (activities.length >= 2) {
+            const t0 = new Date(activities[0].timestamp);
+            const t1 = new Date(activities[activities.length - 1].timestamp);
+            totalRealSecs = Math.round((t1 - t0) / 1000);
+        }
+        activities.forEach(a => {
+            if (a.window_title) screensVisited.add(a.window_title);
+            if (a.application) appsUsed.add(a.application);
+        });
+        const totalSecs   = totalRealSecs || totalEstSecs;
+        const totalMins   = Math.floor(totalSecs / 60);
+        const remSecs     = totalSecs % 60;
+        const timeLabel   = totalMins > 0 ? `${totalMins}m ${remSecs}s` : `${totalSecs}s`;
+        const estLabel    = totalEstSecs > 0 ? formatTime(totalEstSecs) : '—';
+        const savedSecs   = Math.max(0, Math.round(totalEstSecs * 0.35));
+        const savedLabel  = savedSecs > 0 ? formatTime(savedSecs) : '—';
+
+        // ── Stats row ───────────────────────────────────────────────────────
+        document.getElementById('tlStatsRow').innerHTML = `
+            <div class="tl-stat-card tl-stat-purple">
+                <div class="tl-stat-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <div class="tl-stat-label">Total Time</div>
+                <div class="tl-stat-value">${timeLabel}</div>
+                <div class="tl-stat-sub">actual session</div>
+            </div>
+            <div class="tl-stat-card tl-stat-blue">
+                <div class="tl-stat-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                </div>
+                <div class="tl-stat-label">Total Actions</div>
+                <div class="tl-stat-value">${activities.length || steps.length}</div>
+                <div class="tl-stat-sub">recorded events</div>
+            </div>
+            <div class="tl-stat-card tl-stat-green">
+                <div class="tl-stat-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                </div>
+                <div class="tl-stat-label">Screens Visited</div>
+                <div class="tl-stat-value">${screensVisited.size || l3Steps.length}</div>
+                <div class="tl-stat-sub">${appsUsed.size} app${appsUsed.size !== 1 ? 's' : ''} used</div>
+            </div>
+            <div class="tl-stat-card tl-stat-orange">
+                <div class="tl-stat-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                </div>
+                <div class="tl-stat-label">Est. Process Time</div>
+                <div class="tl-stat-value">${estLabel}</div>
+                <div class="tl-stat-sub">~${savedLabel} automation saving</div>
+            </div>`;
+
+        // ── Phase time bars ─────────────────────────────────────────────────
+        if (l3Steps.length && steps.length) {
+            const phaseMap = {};
+            l3Steps.forEach(p => { phaseMap[p.id] = { name: p.name, secs: 0 }; });
+            steps.forEach(st => {
+                const k = st.parent_l3;
+                if (phaseMap[k]) phaseMap[k].secs += (st.estimated_time_seconds || 0);
+                else phaseMap[k] = { name: k, secs: st.estimated_time_seconds || 0 };
+            });
+            const maxSecs = Math.max(...Object.values(phaseMap).map(p => p.secs), 1);
+            const phaseColors = ['#6366F1','#0EA5E9','#10B981','#F59E0B','#EF4444','#8B5CF6','#06B6D4','#84CC16'];
+            let barsHtml = '<div class="tl-phase-bars">';
+            Object.values(phaseMap).forEach((phase, i) => {
+                const pct = Math.round((phase.secs / maxSecs) * 100);
+                const col = phaseColors[i % phaseColors.length];
+                barsHtml += `
+                    <div class="tl-phase-row">
+                        <div class="tl-phase-name">${esc(phase.name)}</div>
+                        <div class="tl-phase-track">
+                            <div class="tl-phase-fill" style="width:${pct}%;background:${col};"></div>
+                        </div>
+                        <div class="tl-phase-time">${formatTime(phase.secs)}</div>
+                    </div>`;
+            });
+            barsHtml += '</div>';
+            document.getElementById('tlPhaseChart').innerHTML = barsHtml;
+            document.getElementById('tlPhaseBars').style.display = '';
+        }
+
+        // ── Activity log ────────────────────────────────────────────────────
+        if (activities.length) {
+            const t0 = new Date(activities[0].timestamp);
+
+            // Collapse consecutive screen_change events from same window into one row
+            const collapsed = [];
+            activities.forEach(a => {
+                const last = collapsed[collapsed.length - 1];
+                const COLLAPSIBLE = ['screen_change', 'window_focus', 'window_blur'];
+                if (last && COLLAPSIBLE.includes(a.activity_type) && last.activity_type === a.activity_type
+                        && last.window_title === a.window_title) {
+                    last._count = (last._count || 1) + 1;
+                } else {
+                    collapsed.push({ ...a, _count: 1 });
+                }
+            });
+
+            let logHtml = '<div class="tl-actlog">';
+            collapsed.forEach((a, i) => {
+                const m = getActMeta(a.activity_type);
+                const ts = a.timestamp ? new Date(a.timestamp) : null;
+                const elapsed = ts ? Math.round((ts - t0) / 1000) : 0;
+                const elapsedLabel = elapsed < 60 ? `+${elapsed}s` : `+${Math.floor(elapsed/60)}m${elapsed%60}s`;
+                const timeStr = ts ? ts.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'}) : '';
+
+                // Build a clean, readable description
+                const elemText = (a.element_text || '').trim();
+                const winTitle = (a.window_title || '').trim();
+                let desc = '';
+                if (a.activity_type === 'screen_change') {
+                    // The raw element_text is verbose ("Screen changed — now showing: ...") — simplify it
+                    desc = `Viewing: <strong>${esc(winTitle || 'Unknown screen')}</strong>`;
+                    if (a._count > 1) desc += ` <span class="tl-log-count">${a._count} screen frames detected</span>`;
+                } else if (a.activity_type === 'window_focus' || a.activity_type === 'window_blur') {
+                    desc = esc(winTitle);
+                    if (a._count > 1) desc += ` <span class="tl-log-count">(×${a._count})</span>`;
+                } else if (elemText) {
+                    // Use element_text as primary, append window title only if it adds new info
+                    desc = `<strong>${esc(elemText)}</strong>`;
+                    if (winTitle && !elemText.toLowerCase().includes(winTitle.toLowerCase().substring(0, 20))) {
+                        desc += ` <span class="tl-log-win">on ${esc(winTitle)}</span>`;
+                    }
+                } else {
+                    desc = winTitle ? esc(winTitle) : `<em style="color:var(--gray-400)">${m.label}</em>`;
+                }
+
+                const thumb = a.screenshot_path
+                    ? `<button class="tl-log-thumb-btn" onclick="toggleTlThumb(this)" title="Show screenshot">
+                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                           Photo
+                       </button>
+                       <img class="tl-log-thumb tl-log-thumb-hidden" src="${a.screenshot_path}" onclick="openScreenshot(this.src)" />`
+                    : '';
+
+                logHtml += `
+                    <div class="tl-log-item">
+                        <div class="tl-log-dot" style="background:${m.bg};border-color:${m.color};">
+                            <span style="color:${m.color};">${m.icon}</span>
+                        </div>
+                        <div class="tl-log-body">
+                            <div class="tl-log-header">
+                                <span class="tl-log-type" style="background:${m.bg};color:${m.color};">${m.label}</span>
+                                <span class="tl-log-time">${timeStr}</span>
+                                <span class="tl-log-elapsed">${elapsedLabel}</span>
+                            </div>
+                            <div class="tl-log-desc">${desc}</div>
+                        </div>
+                        <div class="tl-log-thumb-wrap">${thumb}</div>
+                    </div>`;
+            });
+            logHtml += '</div>';
+            document.getElementById('tlActivityLog').innerHTML = logHtml;
+        } else {
+            document.getElementById('tlActivityLog').innerHTML = '<p style="color:var(--gray-400);text-align:center;padding:32px;">No detailed activity data recorded. Start a new recording to see the full activity log.</p>';
+        }
+
+        // ── Step timeline graph (existing) ──────────────────────────────────
+        if (steps.length) {
+            let tlHtml = '';
+            let cumTime = 0;
+            steps.forEach(step => {
+                tlHtml += `
+                    <div class="timeline-item">
+                        <div class="tl-time">${formatTime(cumTime)}</div>
+                        <div class="tl-title">${esc(step.name)}</div>
+                        <div class="tl-desc">${esc(step.description)} (${esc(step.system)}) — ${step.estimated_time_seconds}s</div>
+                    </div>`;
+                cumTime += step.estimated_time_seconds;
+            });
+            tlHtml += `<div class="timeline-item"><div class="tl-time">${formatTime(cumTime)}</div><div class="tl-title" style="color:var(--success);">Process Complete</div><div class="tl-desc">Total estimated time: ${formatTime(cumTime)}</div></div>`;
+            document.getElementById('timelineContent').innerHTML = tlHtml;
+        }
+    }
+
     loadReport();
     </script>
+
+    <style>
+    /* ===== FLOWCHART STYLES ===== */
+    .flowchart-card {
+        background: white;
+        border-radius: 16px;
+        border: 1px solid var(--gray-100);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+        overflow: hidden;
+    }
+    .flowchart-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--gray-100);
+        background: var(--gray-50);
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .flowchart-icon {
+        width: 40px; height: 40px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #EDE9FE, #C4B5FD);
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+    }
+    .flowchart-body {
+        padding: 32px 24px;
+        overflow: auto;
+        min-height: 520px;
+        text-align: center;
+        background: white;
+    }
+    .flowchart-body svg { max-width: 100%; height: auto; min-width: 400px; }
+
+    /* ===== SOP STYLES ===== */
+    .sop-wrap { max-width: 860px; margin: 0 auto; font-family: inherit; }
+
+    .sop-header {
+        background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+        border-radius: 16px;
+        padding: 28px 32px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        color: white;
+    }
+    .sop-header-left { display: flex; align-items: flex-start; gap: 16px; }
+    .sop-badge {
+        background: rgba(255,255,255,0.2);
+        border: 1.5px solid rgba(255,255,255,0.4);
+        padding: 4px 12px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 1.5px;
+        margin-top: 4px;
+        flex-shrink: 0;
+    }
+    .sop-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .sop-purpose { font-size: 14px; opacity: 0.85; line-height: 1.5; max-width: 560px; }
+    .sop-meta-chips { display: flex; gap: 8px; flex-shrink: 0; }
+    .sop-chip {
+        padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+        background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);
+    }
+
+    .sop-info-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    .sop-info-box {
+        background: white;
+        border: 1px solid var(--gray-100);
+        border-radius: 12px;
+        padding: 16px 20px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .sop-info-label { font-size: 12px; font-weight: 700; color: var(--gray-500); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .sop-info-text { font-size: 13px; color: var(--gray-700); line-height: 1.6; }
+    .sop-prereq-list { margin: 0; padding-left: 18px; font-size: 13px; color: var(--gray-700); line-height: 1.8; }
+
+    /* Steps */
+    .sop-steps-wrap { display: flex; flex-direction: column; }
+    .sop-step-card {
+        display: flex;
+        gap: 0;
+        margin-bottom: 4px;
+    }
+    .sop-step-left {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 56px;
+        flex-shrink: 0;
+        padding-top: 2px;
+    }
+    .sop-step-num {
+        width: 40px; height: 40px;
+        border-radius: 50%;
+        color: white;
+        font-size: 16px;
+        font-weight: 800;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .sop-step-line {
+        width: 2px;
+        flex: 1;
+        background: var(--gray-200);
+        margin: 8px 0;
+        min-height: 24px;
+    }
+    .sop-step-body {
+        flex: 1;
+        background: white;
+        border: 1px solid var(--gray-100);
+        border-left: 3px solid var(--step-color);
+        border-radius: 12px;
+        padding: 20px 24px;
+        margin-bottom: 16px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        transition: box-shadow 0.2s;
+    }
+    .sop-step-body:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+
+    .sop-step-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+    .sop-step-title { font-size: 16px; font-weight: 700; color: var(--gray-900); }
+    .sop-step-tags { display: flex; gap: 6px; flex-wrap: wrap; flex-shrink: 0; }
+    .sop-tag {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    }
+    .sop-tag-purple { background: #EDE9FE; color: #6D28D9; }
+    .sop-tag-blue   { background: #DBEAFE; color: #1D4ED8; }
+
+    .sop-step-action { font-size: 14px; color: var(--gray-600); line-height: 1.7; margin-bottom: 14px; }
+
+    /* Sub-steps */
+    .sop-substeps { background: var(--gray-50); border-radius: 8px; padding: 14px 18px; margin-bottom: 14px; border: 1px solid var(--gray-100); }
+    .sop-substeps-label { font-size: 11px; font-weight: 700; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .sop-substeps-list { margin: 0; padding-left: 20px; font-size: 13px; color: var(--gray-700); line-height: 2; }
+    .sop-substeps-list li { padding-left: 4px; }
+
+    /* Screenshot */
+    .sop-screenshot-wrap { margin-bottom: 14px; }
+    .sop-screenshot-label {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-size: 11px; font-weight: 700; color: var(--gray-400);
+        text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;
+    }
+    .sop-screenshot-img {
+        width: 100%; max-width: 640px; display: block;
+        border-radius: 10px; border: 1px solid var(--gray-200);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+        cursor: zoom-in;
+        transition: box-shadow 0.2s, transform 0.2s;
+    }
+    .sop-screenshot-img:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.15); transform: scale(1.01); }
+
+    /* I/O */
+    .sop-io-row { display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+    .sop-io-box { flex: 1; min-width: 160px; }
+    .sop-io-label { font-size: 11px; font-weight: 700; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .sop-io-chip {
+        display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px;
+        margin: 2px 4px 2px 0; font-weight: 500;
+    }
+    .sop-io-in .sop-io-chip  { background: #DBEAFE; color: #1D4ED8; }
+    .sop-io-out .sop-io-chip { background: #D1FAE5; color: #065F46; }
+
+    /* Callouts */
+    .sop-callout {
+        display: flex; align-items: flex-start; gap: 10px;
+        border-radius: 8px; padding: 12px 16px; margin-bottom: 10px;
+        font-size: 13px; line-height: 1.6;
+    }
+    .sop-callout svg { flex-shrink: 0; margin-top: 2px; }
+    .sop-callout-decision { background: #EFF6FF; color: #1D4ED8; border-left: 3px solid #3B82F6; }
+    .sop-callout-tip      { background: #F0FDF4; color: #166534; border-left: 3px solid #22C55E; }
+    .sop-callout-warning  { background: #FFFBEB; color: #92400E; border-left: 3px solid #F59E0B; }
+
+    /* Outcome */
+    .sop-outcome {
+        display: flex; align-items: flex-start; gap: 16px;
+        background: linear-gradient(135deg, #F0FDF4, #DCFCE7);
+        border: 1.5px solid #86EFAC;
+        border-radius: 14px; padding: 20px 24px; margin-top: 8px;
+    }
+    .sop-outcome-icon { font-size: 28px; }
+    .sop-outcome-label { font-size: 12px; font-weight: 700; color: #166534; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .sop-outcome-text { font-size: 14px; color: #166534; line-height: 1.6; }
+
+    @media (max-width: 640px) {
+        .sop-info-row { grid-template-columns: 1fr; }
+        .sop-header { flex-direction: column; gap: 12px; }
+    }
+
+    /* ===== L3 PROCESS MAP ===== */
+    .l3-header-bar {
+        display: flex; align-items: flex-start; justify-content: space-between;
+        background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+        border-radius: 14px; padding: 20px 24px; margin-bottom: 24px; color: white;
+    }
+    .l3-header-title { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+    .l3-header-obj   { font-size: 13px; opacity: 0.85; max-width: 500px; line-height: 1.5; }
+    .l3-header-meta  { display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0; margin-left: 16px; }
+    .l3-meta-chip {
+        display: inline-flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.18);
+        border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; padding: 4px 12px;
+        font-size: 12px; font-weight: 600; color: white;
+    }
+    .l3-cards { display: flex; flex-direction: column; gap: 0; }
+    .l3-step-card {
+        background: white; border: 1px solid var(--gray-100); border-radius: 14px;
+        border-left: 4px solid var(--l3-color, #4F46E5);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 20px 20px 0; overflow: hidden;
+    }
+    .l3-step-top {
+        display: flex; align-items: flex-start; gap: 14px; margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .l3-step-num {
+        width: 36px; height: 36px; border-radius: 50%; color: white;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 800; font-size: 15px; flex-shrink: 0;
+    }
+    .l3-step-head { flex: 1; min-width: 0; }
+    .l3-step-id-label { font-size: 10px; font-weight: 700; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+    .l3-step-name { font-size: 15px; font-weight: 700; color: var(--gray-900); margin: 0 0 6px; }
+    .l3-step-desc { font-size: 13px; color: var(--gray-600); line-height: 1.6; margin: 0; }
+    .l3-step-badges { display: flex; gap: 6px; flex-wrap: wrap; flex-shrink: 0; }
+    .l3-risk-badge {
+        font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px;
+        border: 1px solid; text-transform: capitalize;
+    }
+    .l3-time-badge {
+        font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;
+        background: var(--gray-100); color: var(--gray-600); border: 1px solid var(--gray-200);
+    }
+    .l3-step-grid {
+        display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 14px;
+    }
+    @media (max-width: 700px) { .l3-step-grid { grid-template-columns: 1fr; } }
+    .l3-io-cell { padding: 12px; border-radius: 8px; }
+    .l3-io-in  { background: #EFF6FF; }
+    .l3-io-out { background: #F0FDF4; }
+    .l3-io-sys { background: #FAF5FF; }
+    .l3-io-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; color: var(--gray-500); }
+    .l3-io-cell ul { margin: 0; padding-left: 16px; }
+    .l3-io-cell li { font-size: 12px; color: var(--gray-700); line-height: 1.7; }
+    .l3-step-footer {
+        display: flex; gap: 16px; flex-wrap: wrap; padding: 10px 0;
+        border-top: 1px solid var(--gray-100); margin: 0 -20px; padding: 10px 20px;
+        background: var(--gray-50);
+    }
+    .l3-footer-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--gray-600); }
+    .l3-footer-compliance { color: #7C3AED; font-style: italic; }
+    .l3-connector { display: flex; justify-content: center; height: 32px; }
+
+    /* ===== L4 PROCESS MAP ===== */
+    .l4-process-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 12px 0; margin-bottom: 20px; border-bottom: 2px solid var(--gray-100);
+    }
+    .l4-ph-title { font-size: 15px; font-weight: 700; color: var(--gray-800); }
+    .l4-ph-count { font-size: 12px; color: var(--gray-400); }
+    .l4-phase-group { margin-bottom: 28px; }
+    .l4-phase-header {
+        display: flex; align-items: center; gap: 12px;
+        background: var(--gray-50); border-radius: 10px; padding: 12px 16px;
+        margin-bottom: 12px; border-left: 4px solid;
+    }
+    .l4-phase-badge {
+        color: white; font-size: 11px; font-weight: 800;
+        padding: 3px 10px; border-radius: 20px; flex-shrink: 0; text-transform: uppercase;
+    }
+    .l4-phase-info { flex: 1; min-width: 0; }
+    .l4-phase-name { font-size: 14px; font-weight: 700; color: var(--gray-800); display: block; }
+    .l4-phase-meta { font-size: 12px; color: var(--gray-400); }
+    .l4-steps-list { padding-left: 8px; }
+    .l4-step-row { display: flex; gap: 0; margin-bottom: 8px; }
+    .l4-step-connector { display: flex; flex-direction: column; align-items: center; width: 24px; flex-shrink: 0; padding-top: 10px; }
+    .l4-step-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .l4-step-line { flex: 1; width: 2px; background: var(--gray-200); margin-top: 4px; min-height: 20px; }
+    .l4-step-card {
+        flex: 1; background: white; border: 1px solid var(--gray-100); border-radius: 10px;
+        padding: 12px 14px; margin-left: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .l4-step-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+    .l4-step-id { font-size: 10px; font-weight: 700; color: var(--gray-400); text-transform: uppercase; flex-shrink: 0; }
+    .l4-action-badge {
+        font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px;
+        border: 1px solid; text-transform: uppercase; letter-spacing: 0.3px; flex-shrink: 0;
+    }
+    .l4-step-name { font-size: 13px; color: var(--gray-800); flex: 1; }
+    .l4-step-time { font-size: 11px; color: var(--gray-400); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+    .l4-step-desc { font-size: 12px; color: var(--gray-600); line-height: 1.6; margin: 0 0 8px; }
+    .l4-step-sys-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    .l4-sys-chip, .l4-screen-chip {
+        display: inline-flex; align-items: center; gap: 4px;
+        font-size: 11px; padding: 2px 8px; border-radius: 6px;
+        background: #EDE9FE; color: #5B21B6; border: 1px solid #DDD6FE;
+    }
+    .l4-screen-chip { background: #E0F2FE; color: #0369A1; border-color: #BAE6FD; }
+    .l4-expand-btn {
+        display: inline-flex; align-items: center; gap: 5px;
+        font-size: 11px; font-weight: 600; color: var(--primary);
+        background: none; border: none; cursor: pointer; padding: 0;
+    }
+    .l4-expand-btn:hover { text-decoration: underline; }
+    .l4-details { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--gray-200); }
+    .l4-detail-block { margin-bottom: 10px; }
+    .l4-detail-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray-500); margin-bottom: 6px; }
+    .l4-micro-list { margin: 0; padding-left: 20px; }
+    .l4-micro-list li { font-size: 12px; color: var(--gray-700); line-height: 1.7; }
+    .l4-conditions-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+    .l4-cond {
+        font-size: 12px; padding: 6px 10px; border-radius: 6px; line-height: 1.5; flex: 1; min-width: 200px;
+    }
+    .l4-cond span { font-weight: 700; }
+    .l4-pre  { background: #EFF6FF; color: #1D4ED8; }
+    .l4-post { background: #F0FDF4; color: #166534; }
+    .l4-err  { background: #FFF7ED; color: #C2410C; display: flex; align-items: flex-start; gap: 6px; margin-top: 4px; flex: unset; width: 100%; }
+
+    /* ===== TIMELINE STYLES ===== */
+    .tl-stats-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    @media (max-width: 900px) { .tl-stats-row { grid-template-columns: repeat(2,1fr); } }
+    @media (max-width: 560px) { .tl-stats-row { grid-template-columns: 1fr; } }
+
+    .tl-stat-card {
+        border-radius: 14px;
+        padding: 20px 20px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        border: 1px solid transparent;
+    }
+    .tl-stat-purple { background: #EEF2FF; border-color: #C7D2FE; }
+    .tl-stat-blue   { background: #E0F2FE; border-color: #BAE6FD; }
+    .tl-stat-green  { background: #DCFCE7; border-color: #BBF7D0; }
+    .tl-stat-orange { background: #FEF3C7; border-color: #FDE68A; }
+    .tl-stat-icon { margin-bottom: 6px; opacity: 0.75; }
+    .tl-stat-purple .tl-stat-icon { color: #4F46E5; }
+    .tl-stat-blue   .tl-stat-icon { color: #0284C7; }
+    .tl-stat-green  .tl-stat-icon { color: #16A34A; }
+    .tl-stat-orange .tl-stat-icon { color: #D97706; }
+    .tl-stat-label {
+        font-size: 11px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.6px; color: var(--gray-500); margin-bottom: 2px;
+    }
+    .tl-stat-value {
+        font-size: 28px; font-weight: 800; line-height: 1.1; color: var(--gray-900);
+    }
+    .tl-stat-sub { font-size: 12px; color: var(--gray-400); margin-top: 2px; }
+
+    .tl-section-card {
+        background: white;
+        border: 1px solid var(--gray-100);
+        border-radius: 14px;
+        padding: 22px 24px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .tl-section-title {
+        font-size: 14px; font-weight: 700; color: var(--gray-700);
+        margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+        text-transform: uppercase; letter-spacing: 0.5px;
+    }
+
+    /* Phase bars */
+    .tl-phase-bars { display: flex; flex-direction: column; gap: 12px; }
+    .tl-phase-row  { display: flex; align-items: center; gap: 12px; }
+    .tl-phase-name { font-size: 13px; color: var(--gray-700); font-weight: 500; width: 200px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tl-phase-track { flex: 1; height: 12px; background: var(--gray-100); border-radius: 99px; overflow: hidden; }
+    .tl-phase-fill  { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
+    .tl-phase-time  { font-size: 12px; font-weight: 700; color: var(--gray-500); width: 50px; text-align: right; flex-shrink: 0; }
+
+    /* Activity log */
+    .tl-actlog { display: flex; flex-direction: column; }
+    .tl-log-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--gray-50);
+        position: relative;
+    }
+    .tl-log-item:last-child { border-bottom: none; }
+    .tl-log-dot {
+        width: 32px; height: 32px; border-radius: 50%;
+        border: 1.5px solid;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0; margin-top: 2px;
+    }
+    .tl-log-dot svg { display: block; }
+    .tl-log-body { flex: 1; min-width: 0; }
+    .tl-log-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 3px; }
+    .tl-log-type {
+        font-size: 10px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.5px; padding: 2px 8px; border-radius: 20px;
+    }
+    .tl-log-time  { font-size: 11px; color: var(--gray-400); font-variant-numeric: tabular-nums; }
+    .tl-log-elapsed { font-size: 11px; color: var(--gray-300); }
+    .tl-log-desc { font-size: 13px; color: var(--gray-600); line-height: 1.6; word-break: break-word; }
+    .tl-log-desc strong { color: var(--gray-800); }
+    .tl-log-win  { font-size: 12px; color: var(--gray-400); }
+    .tl-log-count { font-size: 11px; color: var(--gray-400); background: var(--gray-100); border-radius: 20px; padding: 1px 8px; margin-left: 4px; }
+    .tl-log-thumb-wrap { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+    .tl-log-thumb-btn {
+        display: inline-flex; align-items: center; gap: 4px;
+        font-size: 11px; font-weight: 600; color: var(--primary);
+        background: #EEF2FF; border: 1px solid #C7D2FE; border-radius: 6px;
+        padding: 4px 10px; cursor: pointer; transition: background 0.15s;
+        white-space: nowrap;
+    }
+    .tl-log-thumb-btn:hover { background: #E0E7FF; }
+    .tl-log-thumb { width: 120px; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid var(--gray-200); cursor: zoom-in; transition: box-shadow 0.15s; display: block; }
+    .tl-log-thumb:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .tl-log-thumb-hidden { display: none !important; }
+
+    /* SOP extras */
+    .sop-time-badge {
+        display: inline-flex; align-items: center; gap: 5px;
+        font-size: 11px; font-weight: 700; color: #0369A1;
+        background: #E0F2FE; border: 1px solid #BAE6FD;
+        border-radius: 20px; padding: 3px 10px; margin-bottom: 10px;
+    }
+    .sop-extras-row {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;
+    }
+    @media (max-width: 600px) { .sop-extras-row { grid-template-columns: 1fr; } }
+    .sop-extra-box {
+        background: var(--gray-50); border: 1px solid var(--gray-200);
+        border-radius: 8px; padding: 10px 12px;
+    }
+    .sop-extra-mistakes { background: #FFFBEB; border-color: #FDE68A; }
+    .sop-extra-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray-500); margin-bottom: 6px; }
+    .sop-extra-list { margin: 0; padding-left: 16px; }
+    .sop-extra-list li { font-size: 12px; color: var(--gray-700); line-height: 1.7; }
+
+    /* SOP screenshot toggle */
+    .sop-screenshot-toggle {
+        display: inline-flex; align-items: center; gap: 7px;
+        padding: 7px 16px; border-radius: 8px; border: 1.5px solid var(--gray-200);
+        background: var(--gray-50); cursor: pointer; font-size: 13px; font-weight: 600;
+        color: var(--gray-600); margin-bottom: 12px; transition: border-color 0.15s, background 0.15s;
+    }
+    .sop-screenshot-toggle:hover { border-color: var(--primary); background: #EEF2FF; color: var(--primary); }
+    </style>
 </body>
 </html>

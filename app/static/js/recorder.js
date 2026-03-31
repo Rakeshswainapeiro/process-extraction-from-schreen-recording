@@ -1,16 +1,18 @@
 /**
- * Screen Recording & Activity Tracking Module v4.0
+ * Screen Recording & Activity Tracking Module v5.0
  *
- * Captures ONLY meaningful process actions:
- *   - Clicks (button, link, menu interactions)
+ * Captures ALL user actions including:
+ *   - Every screen/page/tab/window change with screenshot
+ *   - Window focus & blur (app switches, Alt+Tab, Cmd+Tab)
+ *   - Window title changes (detects navigation to new app/screen)
+ *   - Clicks (button, link, menu, any element)
  *   - Selections (dropdowns, checkboxes, radio buttons)
- *   - Data entry (form field input — debounced, no content captured)
- *   - Tab/window switches (app context changes)
- *   - Page navigation (URL changes)
+ *   - Data entry (form fields — debounced)
+ *   - Page navigation & URL changes
  *   - Copy/paste actions
- *   - Screenshot on meaningful events (not periodic spam)
- *
- * Does NOT capture: scrolling, mouse movement, every keystroke, periodic screenshots
+ *   - Form submissions
+ *   - Keyboard shortcuts (Alt, Ctrl, Cmd combos)
+ *   - Screenshot on EVERY screen change and meaningful action
  */
 
 class ScreenRecorder {
@@ -65,12 +67,14 @@ class ScreenRecorder {
             this.startTime = Date.now();
             this.recentActivities = [];
             this._lastWindowTitle = document.title;
+            this._lastUrl = window.location.href;
 
             this._addActivity({
                 activity_type: 'app_open',
                 application: this.sharedScreenLabel,
                 window_title: document.title,
-                element_text: `Process recording started`,
+                url: window.location.href,
+                element_text: `Process recording started — Screen: ${document.title}`,
             });
 
             this._startTracking();
@@ -125,10 +129,10 @@ class ScreenRecorder {
         return await resp.json();
     }
 
-    // ─── Only track meaningful process actions ───
+    // ─── Track ALL user actions ───
 
     _startTracking() {
-        // 1. CLICKS — buttons, links, menu items, meaningful UI actions
+        // 1. CLICKS — capture every click with full context
         this._clickHandler = (e) => {
             if (this.isPaused) return;
             const el = e.target;
@@ -136,73 +140,98 @@ class ScreenRecorder {
             const role = el.getAttribute('role');
             const type = el.type?.toLowerCase();
 
-            // Determine what kind of click this is
             let actionType = 'click';
             if (tag === 'a' || role === 'link') actionType = 'link_click';
             else if (tag === 'button' || role === 'button' || type === 'submit') actionType = 'button_click';
             else if (tag === 'option' || tag === 'select' || role === 'option') actionType = 'select';
-            else if (type === 'checkbox' || type === 'radio') actionType = 'select';
-            else if (tag === 'input' || tag === 'textarea') return; // handled by focus/data_entry
-            else if (tag === 'li' && el.closest('[role="menu"], [role="listbox"], .dropdown')) actionType = 'menu_select';
+            else if (type === 'checkbox') actionType = el.checked ? 'checkbox_checked' : 'checkbox_unchecked';
+            else if (type === 'radio') actionType = 'radio_selected';
+            else if (tag === 'li' && el.closest('[role="menu"],[role="listbox"],.dropdown')) actionType = 'menu_select';
 
-            // Get meaningful label
             const label = el.innerText?.trim().substring(0, 150)
                 || el.getAttribute('aria-label')
                 || el.getAttribute('title')
                 || el.getAttribute('value')
+                || el.getAttribute('name')
                 || tag;
 
             if (!label || label.length < 1) return;
 
+            // Build context path (e.g. "Sidebar > Menu > Orders")
+            const path = this._getElementPath(el);
+
             this._addActivity({
                 activity_type: actionType,
-                element_text: label,
+                element_text: `${label}${path ? ` (in: ${path})` : ''}`,
                 element_type: tag,
                 url: window.location.href,
                 window_title: document.title,
-                application: 'Browser',
+                application: this._getAppName(),
             });
 
-            // Take a screenshot on meaningful clicks
-            this._captureScreenshot(`After: ${label.substring(0, 50)}`);
+            this._captureScreenshot(`Clicked: ${label.substring(0, 50)}`);
         };
 
-        // 2. DATA ENTRY — track when user focuses on a form field, debounced
+        // 2. DATA ENTRY — capture field name + value on blur (when user leaves field)
         this._dataEntryTimeout = null;
-        this._focusHandler = (e) => {
+        this._blurHandler = (e) => {
             if (this.isPaused) return;
             const el = e.target;
             const tag = el.tagName?.toLowerCase();
             if (tag !== 'input' && tag !== 'textarea' && tag !== 'select' && !el.isContentEditable) return;
 
-            // Clear previous timeout — only log once per field interaction
-            if (this._dataEntryTimeout) clearTimeout(this._dataEntryTimeout);
-            this._dataEntryTimeout = setTimeout(() => {
-                const fieldLabel = el.getAttribute('aria-label')
-                    || el.getAttribute('placeholder')
-                    || el.getAttribute('name')
-                    || el.labels?.[0]?.innerText
-                    || el.closest('label')?.innerText
-                    || `${tag} field`;
+            const fieldLabel = el.getAttribute('aria-label')
+                || el.getAttribute('placeholder')
+                || el.getAttribute('name')
+                || el.getAttribute('id')
+                || el.labels?.[0]?.innerText?.trim()
+                || el.closest('label')?.innerText?.trim()
+                || `${el.type || tag} field`;
 
-                this._addActivity({
-                    activity_type: 'data_entry',
-                    element_text: `Input: ${fieldLabel.substring(0, 150)}`,
-                    element_type: el.type || tag,
-                    window_title: document.title,
-                    application: 'Browser',
-                });
-            }, 1500);
+            const value = el.type === 'password' ? '(password)'
+                : el.tagName?.toLowerCase() === 'select' ? el.options[el.selectedIndex]?.text
+                : el.value?.substring(0, 100) || '';
+
+            if (!value && !fieldLabel) return;
+
+            this._addActivity({
+                activity_type: 'data_entry',
+                element_text: `Field "${fieldLabel}"${value ? `: entered "${value}"` : ''}`,
+                element_type: el.type || tag,
+                url: window.location.href,
+                window_title: document.title,
+                application: this._getAppName(),
+            });
+            this._captureScreenshot(`Filled: ${fieldLabel.substring(0, 40)}`);
         };
 
-        // 3. COPY / PASTE
+        // 3. DROPDOWN CHANGE
+        this._changeHandler = (e) => {
+            if (this.isPaused) return;
+            const el = e.target;
+            if (el.tagName?.toLowerCase() !== 'select') return;
+            const label = el.getAttribute('aria-label') || el.getAttribute('name') || el.getAttribute('id') || 'dropdown';
+            const value = el.options[el.selectedIndex]?.text || el.value;
+            this._addActivity({
+                activity_type: 'select',
+                element_text: `Selected "${value}" from "${label}"`,
+                element_type: 'select',
+                url: window.location.href,
+                window_title: document.title,
+                application: this._getAppName(),
+            });
+            this._captureScreenshot(`Selected: ${value.substring(0, 40)}`);
+        };
+
+        // 4. COPY / PASTE
         this._copyHandler = () => {
             if (this.isPaused) return;
+            const sel = window.getSelection()?.toString()?.substring(0, 80) || '';
             this._addActivity({
                 activity_type: 'copy',
-                element_text: 'Content copied to clipboard',
+                element_text: sel ? `Copied: "${sel}"` : 'Content copied to clipboard',
                 window_title: document.title,
-                application: 'Browser',
+                application: this._getAppName(),
             });
         };
         this._pasteHandler = () => {
@@ -211,91 +240,211 @@ class ScreenRecorder {
                 activity_type: 'paste',
                 element_text: 'Content pasted from clipboard',
                 window_title: document.title,
-                application: 'Browser',
+                url: window.location.href,
+                application: this._getAppName(),
             });
         };
 
-        // 4. TAB / WINDOW SWITCH
+        // 5. KEYBOARD SHORTCUTS (Alt+Tab, Ctrl+combos, Cmd+combos)
+        this._keydownHandler = (e) => {
+            if (this.isPaused) return;
+            const key = e.key;
+            const isModifier = e.altKey || e.ctrlKey || e.metaKey;
+            if (!isModifier) return;
+
+            // Alt+Tab or Cmd+Tab = app switch
+            if ((e.altKey || e.metaKey) && key === 'Tab') {
+                this._addActivity({
+                    activity_type: 'app_switch',
+                    element_text: `App switch shortcut pressed (${e.altKey ? 'Alt' : 'Cmd'}+Tab) — switching away from: ${document.title}`,
+                    window_title: document.title,
+                    application: this._getAppName(),
+                });
+                setTimeout(() => this._captureScreenshot('After app switch'), 600);
+                return;
+            }
+
+            // Only log other meaningful shortcuts
+            const skip = ['Shift','Alt','Control','Meta','CapsLock','Escape'];
+            if (skip.includes(key)) return;
+
+            const modStr = [e.ctrlKey && 'Ctrl', e.metaKey && 'Cmd', e.altKey && 'Alt', e.shiftKey && 'Shift']
+                .filter(Boolean).join('+');
+            this._addActivity({
+                activity_type: 'keyboard_shortcut',
+                element_text: `Shortcut: ${modStr}+${key}`,
+                window_title: document.title,
+                application: this._getAppName(),
+            });
+        };
+
+        // 6. TAB / WINDOW VISIBILITY CHANGE (user switches to another tab or app)
         this._visibilityHandler = () => {
             if (this.isPaused) return;
-            if (document.visibilityState === 'visible') {
+            if (document.visibilityState === 'hidden') {
                 this._addActivity({
-                    activity_type: 'tab_switch',
-                    element_text: `Switched to: ${document.title}`,
+                    activity_type: 'screen_leave',
+                    element_text: `Left screen: "${document.title}" — switched to another app or tab`,
                     window_title: document.title,
-                    application: 'Browser',
+                    url: window.location.href,
+                    application: this._getAppName(),
                 });
-                this._captureScreenshot(`Tab: ${document.title.substring(0, 40)}`);
+            } else {
+                this._addActivity({
+                    activity_type: 'screen_return',
+                    element_text: `Returned to: "${document.title}"`,
+                    window_title: document.title,
+                    url: window.location.href,
+                    application: this._getAppName(),
+                });
+                this._captureScreenshot(`Returned to: ${document.title.substring(0, 40)}`);
             }
         };
 
-        // 5. PAGE NAVIGATION
-        this._lastUrl = window.location.href;
+        // 7. WINDOW FOCUS / BLUR (app-level switch detection)
+        this._focusHandler = () => {
+            if (this.isPaused) return;
+            this._addActivity({
+                activity_type: 'window_focus',
+                element_text: `Window focused: "${document.title}"`,
+                window_title: document.title,
+                url: window.location.href,
+                application: this._getAppName(),
+            });
+            this._captureScreenshot(`Window: ${document.title.substring(0, 40)}`);
+        };
+        this._blurWindowHandler = () => {
+            if (this.isPaused) return;
+            this._addActivity({
+                activity_type: 'window_blur',
+                element_text: `Window lost focus: "${document.title}" — user switched to another application`,
+                window_title: document.title,
+                url: window.location.href,
+                application: this._getAppName(),
+            });
+        };
+
+        // 8. PAGE NAVIGATION (URL changes — SPA + traditional)
         this._urlCheckInterval = setInterval(() => {
             if (this.isPaused) return;
-            if (window.location.href !== this._lastUrl) {
-                const from = this._lastUrl;
-                this._lastUrl = window.location.href;
+            const currentUrl = window.location.href;
+            const currentTitle = document.title;
+
+            if (currentUrl !== this._lastUrl) {
+                const fromUrl = this._lastUrl;
+                const fromTitle = this._lastWindowTitle;
+                this._lastUrl = currentUrl;
+                this._lastWindowTitle = currentTitle;
                 this._addActivity({
                     activity_type: 'navigation',
-                    url: window.location.href,
-                    element_text: `Navigated to: ${document.title || window.location.pathname}`,
-                    window_title: document.title,
-                    application: 'Browser',
-                    metadata: { from_url: from },
+                    url: currentUrl,
+                    element_text: `Navigated from "${fromTitle}" → "${currentTitle || window.location.pathname}"`,
+                    window_title: currentTitle,
+                    application: this._getAppName(),
+                    metadata: { from_url: fromUrl, to_url: currentUrl },
                 });
-                this._captureScreenshot(`Page: ${document.title.substring(0, 40)}`);
+                this._captureScreenshot(`Page: ${currentTitle.substring(0, 40)}`);
+            } else if (currentTitle !== this._lastWindowTitle) {
+                // Title changed without URL change — common in SPAs and desktop apps
+                const fromTitle = this._lastWindowTitle;
+                this._lastWindowTitle = currentTitle;
+                this._addActivity({
+                    activity_type: 'screen_change',
+                    url: currentUrl,
+                    element_text: `Screen changed: "${fromTitle}" → "${currentTitle}"`,
+                    window_title: currentTitle,
+                    application: this._getAppName(),
+                });
+                this._captureScreenshot(`Screen: ${currentTitle.substring(0, 40)}`);
             }
-        }, 800);
+        }, 400);
 
-        // 6. FORM SUBMISSIONS
+        // 9. FORM SUBMISSIONS
         this._submitHandler = (e) => {
             if (this.isPaused) return;
             const form = e.target;
+            const formName = form.getAttribute('name') || form.getAttribute('id') || form.getAttribute('action') || 'form';
             this._addActivity({
                 activity_type: 'form_submit',
-                element_text: `Form submitted: ${form.getAttribute('name') || form.getAttribute('id') || 'form'}`,
+                element_text: `Form submitted: "${formName}" on "${document.title}"`,
+                url: window.location.href,
                 window_title: document.title,
-                application: 'Browser',
+                application: this._getAppName(),
             });
-            this._captureScreenshot('Form submitted');
+            this._captureScreenshot(`After submit: ${formName.substring(0, 40)}`);
         };
 
-        document.addEventListener('click', this._clickHandler, true);
-        document.addEventListener('focusin', this._focusHandler, true);
-        document.addEventListener('copy', this._copyHandler, true);
-        document.addEventListener('paste', this._pasteHandler, true);
+        document.addEventListener('click',        this._clickHandler,      true);
+        document.addEventListener('focusout',     this._blurHandler,       true);
+        document.addEventListener('change',       this._changeHandler,     true);
+        document.addEventListener('copy',         this._copyHandler,       true);
+        document.addEventListener('paste',        this._pasteHandler,      true);
+        document.addEventListener('keydown',      this._keydownHandler,    true);
         document.addEventListener('visibilitychange', this._visibilityHandler);
-        document.addEventListener('submit', this._submitHandler, true);
+        document.addEventListener('submit',       this._submitHandler,     true);
+        window.addEventListener('focus',          this._focusHandler);
+        window.addEventListener('blur',           this._blurWindowHandler);
     }
 
     _stopTracking() {
-        document.removeEventListener('click', this._clickHandler, true);
-        document.removeEventListener('focusin', this._focusHandler, true);
-        document.removeEventListener('copy', this._copyHandler, true);
-        document.removeEventListener('paste', this._pasteHandler, true);
+        document.removeEventListener('click',         this._clickHandler,      true);
+        document.removeEventListener('focusout',      this._blurHandler,       true);
+        document.removeEventListener('change',        this._changeHandler,     true);
+        document.removeEventListener('copy',          this._copyHandler,       true);
+        document.removeEventListener('paste',         this._pasteHandler,      true);
+        document.removeEventListener('keydown',       this._keydownHandler,    true);
         document.removeEventListener('visibilitychange', this._visibilityHandler);
-        document.removeEventListener('submit', this._submitHandler, true);
+        document.removeEventListener('submit',        this._submitHandler,     true);
+        window.removeEventListener('focus',           this._focusHandler);
+        window.removeEventListener('blur',            this._blurWindowHandler);
         clearInterval(this._urlCheckInterval);
         clearInterval(this._screenCheckInterval);
         if (this._dataEntryTimeout) clearTimeout(this._dataEntryTimeout);
     }
 
+    // Get a clean app name from current URL
+    _getAppName() {
+        try {
+            const host = new URL(window.location.href).hostname;
+            return host || document.title || 'Browser';
+        } catch { return document.title || 'Browser'; }
+    }
+
+    // Build a breadcrumb path for an element (e.g. "Nav > Sidebar > Orders")
+    _getElementPath(el) {
+        const parts = [];
+        let current = el.parentElement;
+        let depth = 0;
+        while (current && depth < 4) {
+            const id = current.getAttribute('id');
+            const role = current.getAttribute('role');
+            const label = current.getAttribute('aria-label');
+            const tag = current.tagName?.toLowerCase();
+            if (label) { parts.unshift(label); break; }
+            if (id && !/^\d/.test(id)) parts.unshift(id);
+            else if (role && !['presentation','none','group'].includes(role)) parts.unshift(role);
+            current = current.parentElement;
+            depth++;
+        }
+        return parts.slice(0, 3).join(' > ');
+    }
+
     // ─── Screen change detection (captures when the visible screen changes) ───
 
     _startScreenChangeDetection() {
-        // Check every 2s if the screen content has visually changed — only capture on change
+        let _screenshotPending = false;
+
+        // Check every 500ms — fast enough to catch quick app/screen switches
         this._screenCheckInterval = setInterval(async () => {
             if (!this.isRecording || !this.mediaStream || this.isPaused) return;
             try {
                 const track = this.mediaStream.getVideoTracks()[0];
                 if (!track || track.readyState !== 'live') return;
 
-                // Draw current frame
                 if (typeof ImageCapture !== 'undefined') {
                     const capture = new ImageCapture(track);
                     const bitmap = await capture.grabFrame();
-                    this.canvas.width = Math.min(bitmap.width, 320); // small for comparison
+                    this.canvas.width = Math.min(bitmap.width, 320);
                     this.canvas.height = Math.min(bitmap.height, 180);
                     this.canvasCtx.drawImage(bitmap, 0, 0, this.canvas.width, this.canvas.height);
                     bitmap.close();
@@ -305,35 +454,57 @@ class ScreenRecorder {
                     this.canvasCtx.drawImage(this.videoElement, 0, 0, 320, 180);
                 }
 
-                // Update mini-map
+                // Update mini-map thumbnail
                 const thumbnail = document.getElementById('miniMapThumb');
-                if (thumbnail) thumbnail.src = this.canvas.toDataURL('image/jpeg', 0.3);
+                if (thumbnail) {
+                    thumbnail.src = this.canvas.toDataURL('image/jpeg', 0.3);
+                    document.getElementById('miniMap').style.display = 'block';
+                }
 
-                // Simple change detection: compare a hash of sampled pixels
                 const imageData = this.canvasCtx.getImageData(0, 0, this.canvas.width, this.canvas.height);
                 const hash = this._quickHash(imageData.data);
 
                 if (hash !== this._lastScreenHash) {
+                    const prevHash = this._lastScreenHash;
                     this._lastScreenHash = hash;
-                    // Screen changed visibly — log it
+
+                    // Only log if hash changed significantly (not just a cursor blink)
+                    const changeMagnitude = this._hashDiff(prevHash, hash);
+                    if (changeMagnitude < 10 && prevHash !== '') return; // tiny change, skip
+
                     this._addActivity({
                         activity_type: 'screen_change',
                         application: this.sharedScreenLabel,
                         window_title: document.title,
-                        element_text: `Screen content changed`,
+                        url: window.location.href,
+                        element_text: `Screen changed — now showing: "${document.title}" (${this._getAppName()})`,
                     });
+
+                    // Take a full-res screenshot of the new screen (throttled — max 1 per second)
+                    if (!_screenshotPending) {
+                        _screenshotPending = true;
+                        setTimeout(async () => {
+                            await this._captureScreenshot(`Screen: ${document.title.substring(0, 40)}`);
+                            _screenshotPending = false;
+                        }, 300);
+                    }
                 }
             } catch (err) { /* skip */ }
-        }, 2000);
+        }, 500);
     }
 
     _quickHash(pixelData) {
-        // Sample every 500th pixel for a quick visual fingerprint
         let hash = 0;
-        for (let i = 0; i < pixelData.length; i += 2000) {
-            hash = ((hash << 5) - hash + pixelData[i]) | 0;
+        for (let i = 0; i < pixelData.length; i += 1000) {
+            hash = ((hash << 5) - hash + pixelData[i] + pixelData[i+1] + pixelData[i+2]) | 0;
         }
         return hash;
+    }
+
+    _hashDiff(a, b) {
+        // Returns a rough magnitude of change between two hashes
+        if (!a || !b) return 999;
+        return Math.abs((a >>> 0) - (b >>> 0)) / 1000000;
     }
 
     async _captureScreenshot(reason) {
@@ -402,9 +573,13 @@ class ScreenRecorder {
         if (!listEl) return;
 
         const typeIcons = {
-            button_click: '🖱️', link_click: '🔗', click: '👆', select: '☑️',
-            menu_select: '📋', data_entry: '⌨️', navigation: '🧭', tab_switch: '🔄',
-            copy: '📋', paste: '📌', form_submit: '📤', screen_change: '🖥️',
+            button_click: '🖱️', link_click: '🔗', click: '👆',
+            select: '☑️', checkbox_checked: '✅', checkbox_unchecked: '⬜', radio_selected: '🔘',
+            menu_select: '📋', data_entry: '⌨️', navigation: '🧭',
+            screen_leave: '👋', screen_return: '🔙', screen_change: '🖥️',
+            window_focus: '🪟', window_blur: '💨', tab_switch: '🔄',
+            app_switch: '↔️', keyboard_shortcut: '⌨️',
+            copy: '📋', paste: '📌', form_submit: '📤',
             screenshot: '📸', app_open: '▶️', app_close: '⏹️', pause: '⏸️', resume: '▶️',
         };
 

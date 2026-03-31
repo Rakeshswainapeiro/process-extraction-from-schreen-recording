@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.database import Activity, Recording, get_db
+from app.models.database import Activity, ProcessReport, Recording, get_db
 from app.routes.auth_routes import require_user
 from app.services.process_analyzer import analyzer
 from config import settings
@@ -151,6 +151,32 @@ async def stop_recording(recording_id: int, db: AsyncSession = Depends(get_db),
         return JSONResponse({"status": "failed", "error": str(e)}, status_code=500)
 
 
+@router.get("/{recording_id}/activities")
+async def get_activities(recording_id: int, db: AsyncSession = Depends(get_db),
+                         user=Depends(require_user)):
+    result = await db.execute(select(Recording).where(Recording.id == recording_id))
+    recording = result.scalar_one_or_none()
+    if not recording or recording.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Recording not found")
+
+    acts = await db.execute(
+        select(Activity).where(Activity.recording_id == recording_id).order_by(Activity.sequence_order)
+    )
+    activities = acts.scalars().all()
+    return JSONResponse([{
+        "id": a.id,
+        "sequence_order": a.sequence_order,
+        "timestamp": a.timestamp.isoformat() if a.timestamp else None,
+        "activity_type": a.activity_type,
+        "application": a.application,
+        "window_title": a.window_title,
+        "url": a.url,
+        "element_text": a.element_text,
+        "element_type": a.element_type,
+        "screenshot_path": f"/screenshots/{a.screenshot_path.split('/')[-1]}" if a.screenshot_path else None,
+    } for a in activities])
+
+
 @router.get("/{recording_id}")
 async def get_recording(recording_id: int, db: AsyncSession = Depends(get_db),
                         user=Depends(require_user)):
@@ -174,6 +200,28 @@ async def get_recording(recording_id: int, db: AsyncSession = Depends(get_db),
         "duration_seconds": recording.duration_seconds,
         "activity_count": len(activities),
     })
+
+
+@router.delete("/{recording_id}")
+async def delete_recording(recording_id: int, db: AsyncSession = Depends(get_db),
+                           user=Depends(require_user)):
+    result = await db.execute(select(Recording).where(Recording.id == recording_id))
+    recording = result.scalar_one_or_none()
+    if not recording or recording.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Recording not found")
+
+    # Delete ProcessReport first (nullable=False FK — cannot cascade automatically)
+    report_result = await db.execute(
+        select(ProcessReport).where(ProcessReport.recording_id == recording_id)
+    )
+    report = report_result.scalar_one_or_none()
+    if report:
+        await db.delete(report)
+
+    # Activities are cascade-deleted via the relationship, Recording deletion handles them
+    await db.delete(recording)
+    await db.commit()
+    return JSONResponse({"status": "deleted"})
 
 
 @router.get("")

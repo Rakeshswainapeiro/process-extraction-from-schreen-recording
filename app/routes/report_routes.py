@@ -12,6 +12,16 @@ from app.services.process_analyzer import analyzer
 router = APIRouter(prefix="/api/reports")
 
 
+def _parse_sop(sop_document):
+    """Return SOP as parsed JSON object if possible, otherwise return raw string."""
+    if not sop_document:
+        return None
+    try:
+        return json.loads(sop_document)
+    except (json.JSONDecodeError, TypeError):
+        return sop_document
+
+
 @router.post("/{recording_id}/reanalyze")
 async def reanalyze_report(recording_id: int, db: AsyncSession = Depends(get_db),
                            user=Depends(require_user)):
@@ -53,7 +63,7 @@ async def get_report(recording_id: int, db: AsyncSession = Depends(get_db),
         "summary": report.process_summary,
         "l3_process_map": json.loads(report.l3_process_map) if report.l3_process_map else None,
         "l4_process_map": json.loads(report.l4_process_map) if report.l4_process_map else None,
-        "sop": report.sop_document,
+        "sop": _parse_sop(report.sop_document),
         "automation_recommendations": json.loads(report.automation_recommendations) if report.automation_recommendations else [],
         "ai_recommendations": json.loads(report.ai_recommendations) if report.ai_recommendations else [],
         "mermaid_diagram": report.mermaid_diagram,
