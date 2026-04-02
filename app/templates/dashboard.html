@@ -329,24 +329,25 @@
         }
         .history-table thead th {
             text-align: left;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.8px;
             color: var(--gray-400);
-            padding: 0 16px 12px;
-            border-bottom: 1.5px solid var(--gray-100);
+            padding: 0 20px 16px;
+            border-bottom: 2px solid var(--gray-100);
         }
         .history-table tbody tr {
-            transition: background 0.15s;
+            transition: all 0.2s;
+            cursor: default;
         }
         .history-table tbody tr:hover {
-            background: var(--gray-50);
+            background: #F8FAFC;
         }
         .history-table tbody td {
-            padding: 14px 16px;
+            padding: 18px 20px;
             border-bottom: 1px solid var(--gray-100);
-            font-size: 13px;
+            font-size: 14px;
             color: var(--gray-700);
             vertical-align: middle;
         }
@@ -418,6 +419,60 @@
             transition: all 0.2s;
         }
         .btn-icon:hover { border-color: var(--danger); color: var(--danger); background: #FEE2E2; }
+
+        /* Pagination V2 */
+        .pagination-area {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px;
+            border-top: 1px solid var(--gray-100);
+            background: #F8FAFC;
+            border-bottom-left-radius: 16px;
+            border-bottom-right-radius: 16px;
+        }
+        .pagination-info {
+            font-size: 13px;
+            color: var(--gray-500);
+            font-weight: 500;
+        }
+        .pagination-controls {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .btn-page {
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--gray-200);
+            background: white;
+            color: var(--gray-600);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-page:hover:not(:disabled) {
+            border-color: #818CF8;
+            color: var(--primary);
+            background: white;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .btn-page.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
+            transform: translateY(-1px);
+        }
+        .btn-page:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: var(--gray-50);
+            transform: none;
+            box-shadow: none;
+        }
 
         /* Empty state */
         .empty-state {
@@ -691,6 +746,10 @@
                         </thead>
                         <tbody id="recordingsTbody"></tbody>
                     </table>
+                    <div id="paginationContainer" class="pagination-area" style="display:none;">
+                        <span id="paginationInfo" class="pagination-info"></span>
+                        <div id="paginationControls" class="pagination-controls"></div>
+                    </div>
                     <div class="empty-state" id="emptyState">
                         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                         <p>No recordings yet</p>
@@ -785,69 +844,114 @@
         }
 
         // Override loadRecordings from dashboard.js to use the new table UI
+        let allRecordings = [];
+        let currentRecPage = 1;
+        const recPerPage = 8; // Show 8 items for a cleaner, slightly longer list
+
         const _origLoad = window.loadRecordings;
         window.loadRecordings = async function () {
             try {
                 const resp = await fetch('/api/recordings');
-                const recordings = await resp.json();
+                allRecordings = await resp.json();
 
                 // Update stat counters
-                document.getElementById('totalRecordings').textContent = recordings.length;
-                document.getElementById('completedRecordings').textContent = recordings.filter(r => r.status === 'completed').length;
+                document.getElementById('totalRecordings').textContent = allRecordings.length;
+                document.getElementById('completedRecordings').textContent = allRecordings.filter(r => r.status === 'completed').length;
 
                 // Count total activities from completed recordings
                 let totalAct = 0;
-                recordings.forEach(r => { if (r.activity_count) totalAct += r.activity_count; });
+                allRecordings.forEach(r => { if (r.activity_count) totalAct += r.activity_count; });
                 const actEl = document.getElementById('totalActivities');
                 if (actEl) actEl.textContent = totalAct || '—';
 
-                // Render new table
-                const tbody = document.getElementById('recordingsTbody');
-                const table = document.getElementById('recordingsTable');
-                const empty = document.getElementById('emptyState');
-
-                if (!recordings.length) {
-                    if (table) table.style.display = 'none';
-                    if (empty) empty.style.display = 'block';
-                    return;
-                }
-                if (table) table.style.display = 'table';
-                if (empty) empty.style.display = 'none';
-                if (!tbody) return;
-
-                tbody.innerHTML = recordings.map(r => {
-                    const initial = (r.title || 'R')[0].toUpperCase();
-                    const date = r.started_at ? new Date(r.started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
-                    const time = r.started_at ? new Date(r.started_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
-                    const dur = formatDur(r.duration_seconds);
-                    const st = r.status || 'idle';
-                    const stLabel = st.charAt(0).toUpperCase() + st.slice(1);
-                    const canView = r.status === 'completed';
-                    return `<tr>
-                        <td>
-                            <div class="rec-title-cell">
-                                <div class="rec-thumb"><span class="rec-thumb-text">${initial}</span></div>
-                                <div>
-                                    <div class="rec-name">${escHtml(r.title || 'Untitled')}</div>
-                                    <div class="rec-date">${time ? time + ' · ' : ''}${date}</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td><span class="badge-v2 ${st}"><span class="badge-v2-dot"></span>${stLabel}</span></td>
-                        <td><span class="duration-chip">${dur}</span></td>
-                        <td style="color:var(--gray-500);font-size:12px;">${date}</td>
-                        <td>
-                            <div class="rec-actions">
-                                ${canView ? `<a href="/report/${r.id}" class="btn-view"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>View Report</a>` : ''}
-                                ${canView ? `<button class="btn-icon" onclick="exportReport(${r.id})" title="Export"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>` : ''}
-                                <button class="btn-icon" onclick="deleteRecording(${r.id})" title="Delete recording"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
-                            </div>
-                        </td>
-                    </tr>`;
-                }).join('');
+                currentRecPage = 1;
+                renderRecordingsPage();
             } catch (err) {
                 console.error('Failed to load recordings:', err);
             }
+        };
+
+        window.renderRecordingsPage = function() {
+            const tbody = document.getElementById('recordingsTbody');
+            const table = document.getElementById('recordingsTable');
+            const empty = document.getElementById('emptyState');
+            const paginationContainer = document.getElementById('paginationContainer');
+
+            if (!allRecordings.length) {
+                if (table) table.style.display = 'none';
+                if (paginationContainer) paginationContainer.style.display = 'none';
+                if (empty) empty.style.display = 'block';
+                return;
+            }
+
+            if (table) table.style.display = 'table';
+            if (empty) empty.style.display = 'none';
+            if (!tbody) return;
+
+            const totalPages = Math.ceil(allRecordings.length / recPerPage);
+            if (currentRecPage < 1) currentRecPage = 1;
+            if (currentRecPage > totalPages) currentRecPage = totalPages;
+
+            const startIdx = (currentRecPage - 1) * recPerPage;
+            const currentItems = allRecordings.slice(startIdx, startIdx + recPerPage);
+
+            tbody.innerHTML = currentItems.map(r => {
+                const initial = (r.title || 'R')[0].toUpperCase();
+                const date = r.started_at ? new Date(r.started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+                const time = r.started_at ? new Date(r.started_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+                const dur = formatDur(r.duration_seconds);
+                const st = r.status || 'idle';
+                const stLabel = st.charAt(0).toUpperCase() + st.slice(1);
+                const canView = r.status === 'completed';
+                return `<tr>
+                    <td>
+                        <div class="rec-title-cell">
+                            <div class="rec-thumb"><span class="rec-thumb-text">${initial}</span></div>
+                            <div>
+                                <div class="rec-name" style="font-size:14px;">${escHtml(r.title || 'Untitled')}</div>
+                                <div class="rec-date" style="font-size:12px;">${time ? time + ' · ' : ''}${date}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="badge-v2 ${st}" style="font-size:12px; padding:5px 12px;"><span class="badge-v2-dot"></span>${stLabel}</span></td>
+                    <td><span class="duration-chip" style="font-size:13px; font-weight:500;">${dur}</span></td>
+                    <td style="color:var(--gray-500);font-size:13px;">${date}</td>
+                    <td>
+                        <div class="rec-actions">
+                            ${canView ? `<a href="/report/${r.id}" class="btn-view" style="padding:8px 16px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>View Report</a>` : ''}
+                            ${canView ? `<button class="btn-icon" onclick="exportReport(${r.id})" title="Export"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>` : ''}
+                            <button class="btn-icon" onclick="deleteRecording(${r.id})" title="Delete recording"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            if (paginationContainer) {
+                if (totalPages > 1) {
+                    paginationContainer.style.display = 'flex';
+                    document.getElementById('paginationInfo').textContent = `Showing ${startIdx + 1} to ${Math.min(startIdx + recPerPage, allRecordings.length)} of ${allRecordings.length} recordings`;
+                    
+                    let btns = `<button class="btn-page" onclick="changeRecPage(${currentRecPage - 1})" ${currentRecPage === 1 ? 'disabled' : ''}>Prev</button>`;
+                    for (let i = 1; i <= totalPages; i++) {
+                        if (totalPages <= 7 || i === 1 || i === totalPages || (i >= currentRecPage - 1 && i <= currentRecPage + 1)) {
+                            btns += `<button class="btn-page ${i === currentRecPage ? 'active' : ''}" onclick="changeRecPage(${i})">${i}</button>`;
+                        } else if ((i === 2 && currentRecPage > 3) || (i === totalPages - 1 && currentRecPage < totalPages - 2)) {
+                            if (!btns.endsWith('</span>')) {
+                                btns += `<span style="color:var(--gray-400);padding:0 4px;">...</span>`;
+                            }
+                        }
+                    }
+                    btns += `<button class="btn-page" onclick="changeRecPage(${currentRecPage + 1})" ${currentRecPage === totalPages ? 'disabled' : ''}>Next</button>`;
+                    document.getElementById('paginationControls').innerHTML = btns;
+                } else {
+                    paginationContainer.style.display = 'none';
+                }
+            }
+        };
+
+        window.changeRecPage = function(page) {
+            currentRecPage = page;
+            renderRecordingsPage();
         };
 
         // Delete confirmation modal
