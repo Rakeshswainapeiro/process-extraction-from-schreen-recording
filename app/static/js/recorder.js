@@ -616,29 +616,82 @@ class ScreenRecorder {
     _startTimer() {
         const timerEl = document.getElementById('timer');
         if (timerEl) timerEl.style.display = 'inline';
+        this._warned5min = false;
+        this._warned2min = false;
+        this._warned1min = false;
 
         this.timerInterval = setInterval(() => {
             if (this.isPaused) return;
             const elapsed = Math.floor((Date.now() - this.startTime - this.pausedTime) / 1000);
+            const remaining = 1800 - elapsed;
 
-            // Auto-stop at 30 minutes (1800 seconds)
+            // ── Auto-stop at exactly 30 minutes ──────────────────────────────
             if (elapsed >= 1800) {
-                if (window.showToast) {
-                    window.showToast('Maximum recording time of 30 minutes reached. Stopping automatically.', 'warning');
-                } else {
-                    alert('Maximum recording time of 30 minutes reached. Stopping automatically.');
-                }
+                clearInterval(this.timerInterval);
+                this._showTimeLimitBanner();
                 if (this.isRecording && typeof window.stopRecording === 'function') {
                     window.stopRecording();
                 }
                 return;
             }
 
-            const hrs = String(Math.floor(elapsed / 3600)).padStart(2, '0');
+            // ── Countdown warnings ────────────────────────────────────────────
+            if (!this._warned5min && remaining <= 300) {
+                this._warned5min = true;
+                if (window.showToast) window.showToast('⏱ 5 minutes left — recording will auto-stop and analyze at 30 min.', 'warning');
+                if (timerEl) timerEl.style.color = '#F59E0B';
+            }
+            if (!this._warned2min && remaining <= 120) {
+                this._warned2min = true;
+                if (window.showToast) window.showToast('⚠️ 2 minutes remaining before auto-stop!', 'warning');
+                if (timerEl) timerEl.style.color = '#EF4444';
+            }
+            if (!this._warned1min && remaining <= 60) {
+                this._warned1min = true;
+                if (window.showToast) window.showToast('🔴 1 minute left — recording stops at 30:00', 'warning');
+            }
+
+            const hrs  = String(Math.floor(elapsed / 3600)).padStart(2, '0');
             const mins = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
             const secs = String(elapsed % 60).padStart(2, '0');
             if (timerEl) timerEl.textContent = `${hrs}:${mins}:${secs}`;
         }, 1000);
+    }
+
+    _showTimeLimitBanner() {
+        // Remove any existing banner
+        const old = document.getElementById('timeLimitBanner');
+        if (old) old.remove();
+
+        const banner = document.createElement('div');
+        banner.id = 'timeLimitBanner';
+        banner.style.cssText = `
+            position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+            background: linear-gradient(135deg, #7C3AED, #4F46E5);
+            color: white; padding: 18px 24px;
+            display: flex; align-items: center; justify-content: center; gap: 14px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+            font-family: inherit; animation: slideDown 0.3s ease;
+        `;
+        banner.innerHTML = `
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" style="flex-shrink:0;">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <div>
+                <div style="font-size:15px;font-weight:800;">30-minute recording limit reached</div>
+                <div style="font-size:13px;opacity:0.85;margin-top:2px;">Stopping recording and starting AI analysis — please wait...</div>
+            </div>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;opacity:0.85;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                Analyzing...
+            </div>
+        `;
+
+        // Add slide-down animation
+        const style = document.createElement('style');
+        style.textContent = '@keyframes slideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }';
+        document.head.appendChild(style);
+        document.body.prepend(banner);
     }
 
     _updateActivityCounter() {
