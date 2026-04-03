@@ -1,0 +1,96 @@
+{% extends "admin/base.html" %}
+{% set active_page = "revenue" %}
+{% block title %}Revenue{% endblock %}
+{% block page_title %}Revenue{% endblock %}
+{% block breadcrumb %}Admin / Revenue{% endblock %}
+
+{% block content %}
+<div class="kpi-grid mb-6">
+  <div class="kpi-card green"><div class="kpi-label">Total Revenue</div><div class="kpi-value" id="k-revenue">—</div></div>
+  <div class="kpi-card blue"><div class="kpi-label">Sessions Sold</div><div class="kpi-value" id="k-sessions">—</div></div>
+  <div class="kpi-card amber"><div class="kpi-label">Token Packs Sold</div><div class="kpi-value" id="k-tokens">—</div></div>
+  <div class="kpi-card"><div class="kpi-label">Total Purchases</div><div class="kpi-value" id="k-count">—</div></div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Purchase History</span>
+    <button class="btn btn-primary btn-sm" onclick="document.getElementById('grant-modal').classList.add('open')">+ Manual Grant</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>User</th><th>Type</th><th>Quantity</th><th>Amount</th><th>Status</th><th>Reference</th><th>Date</th></tr></thead>
+      <tbody id="purchases-tbody"><tr><td colspan="8" class="text-muted">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Grant Modal -->
+<div class="modal-backdrop" id="grant-modal">
+  <div class="modal">
+    <div class="modal-title">Manual Credit Grant</div>
+    <div class="form-group"><label>User ID</label><input type="number" id="g-uid" placeholder="User ID"></div>
+    <div class="form-group"><label>Type</label>
+      <select id="g-type"><option value="sessions">Sessions</option><option value="tokens">Tokens</option></select>
+    </div>
+    <div class="form-group"><label>Quantity</label><input type="number" id="g-qty" value="10" min="1"></div>
+    <div class="form-group"><label>Notes</label><input type="text" id="g-notes" placeholder="e.g. Compensation for downtime"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('grant-modal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-success" onclick="submitGrant()">Grant</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadStats() {
+  try {
+    const s = await api('GET', '/api/admin/purchases/stats');
+    document.getElementById('k-revenue').textContent = '$' + s.total_revenue_usd.toFixed(2);
+    document.getElementById('k-sessions').textContent = s.sessions_sold;
+    document.getElementById('k-tokens').textContent = fmtNum(s.tokens_sold);
+    document.getElementById('k-count').textContent = s.purchase_count;
+  } catch(e) {}
+}
+
+async function loadPurchases() {
+  try {
+    const items = await api('GET', '/api/admin/purchases?limit=100');
+    const tbody = document.getElementById('purchases-tbody');
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-muted">No purchases yet.</td></tr>'; return; }
+    tbody.innerHTML = items.map(p => `
+      <tr>
+        <td class="text-muted">#${p.id}</td>
+        <td>${p.user_email}</td>
+        <td><span class="badge ${p.purchase_type === 'sessions' ? 'badge-blue' : 'badge-amber'}">${p.purchase_type}</span></td>
+        <td>${fmtNum(p.quantity)}</td>
+        <td>${p.amount_usd > 0 ? '$' + p.amount_usd.toFixed(2) : '<span class="text-muted">Grant</span>'}</td>
+        <td><span class="badge ${p.status === 'completed' ? 'badge-green' : p.status === 'refunded' ? 'badge-red' : 'badge-amber'}">${p.status}</span></td>
+        <td class="font-mono text-sm text-muted">${p.payment_reference || (p.notes || '—')}</td>
+        <td class="text-muted text-sm">${fmtDate(p.created_at)}</td>
+      </tr>`).join('');
+  } catch(e) {}
+}
+
+async function submitGrant() {
+  const user_id = parseInt(document.getElementById('g-uid').value);
+  const purchase_type = document.getElementById('g-type').value;
+  const quantity = parseInt(document.getElementById('g-qty').value);
+  const notes = document.getElementById('g-notes').value;
+  if (!user_id || !quantity) { showToast('Fill in all fields', 'error'); return; }
+  try {
+    await api('POST', '/api/admin/purchases/grant', { user_id, purchase_type, quantity, notes });
+    showToast('Credits granted!', 'success');
+    document.getElementById('grant-modal').classList.remove('open');
+    loadPurchases(); loadStats();
+  } catch(e) { showToast('Failed: ' + e.message, 'error'); }
+}
+
+function fmtNum(n) { return n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'k' : (n||0); }
+function fmtDate(iso) { if (!iso) return '—'; return new Date(iso).toLocaleDateString(); }
+
+loadStats(); loadPurchases();
+</script>
+{% endblock %}

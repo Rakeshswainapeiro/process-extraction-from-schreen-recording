@@ -1,100 +1,530 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Settings - Process Extractor Pro</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
-        .settings-section { margin-bottom: 32px; }
-        .settings-section h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-        .model-card {
+        .settings-header {
+            margin-bottom: 32px;
+        }
+
+        .settings-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--gray-900);
+            letter-spacing: -0.5px;
+        }
+
+        .settings-header p {
+            color: var(--gray-500);
+            font-size: 14px;
+            margin-top: 6px;
+        }
+
+        .settings-section {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            border: 1px solid var(--gray-100);
+            margin-bottom: 32px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .settings-section-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--gray-100);
+        }
+
+        .settings-section-title h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+
+        .settings-section-title .icon-bg {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--gray-50);
+            color: var(--primary);
+        }
+
+        .settings-section-desc {
+            color: var(--gray-500);
+            font-size: 14px;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        /* Forms Premium Styling */
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-bottom: 6px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
             border: 1px solid var(--gray-200);
             border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 16px;
-            position: relative;
-            transition: border-color 0.2s;
+            font-size: 14px;
+            color: var(--gray-800);
+            background: var(--gray-50);
+            transition: all 0.2s ease;
         }
-        .model-card:hover { border-color: var(--primary-light); }
-        .model-card.is-default { border-color: var(--primary); border-width: 2px; }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-light);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+        }
+
+        .form-control::placeholder {
+            color: var(--gray-400);
+        }
+
+        select.form-control {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 16px;
+            padding-right: 40px;
+        }
+
+        .form-group-wrapper {
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .form-row-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 24px;
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: var(--gray-500);
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+            gap: 12px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+            background-color: var(--gray-300);
+            border-radius: 24px;
+            transition: .4s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            border-radius: 50%;
+            transition: .4s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        input:checked+.slider {
+            background-color: var(--primary);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(20px);
+        }
+
+        .toggle-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-700);
+        }
+
+        /* Model Cards */
+        .model-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+
+        .model-card {
+            border: 1px solid var(--gray-200);
+            border-radius: 14px;
+            padding: 20px;
+            position: relative;
+            transition: all 0.2s ease;
+            background: white;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .model-card:hover {
+            border-color: var(--primary-light);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .model-card.is-default {
+            border-color: var(--primary);
+            border-width: 2px;
+            background: linear-gradient(to bottom right, #ffffff, rgba(79, 70, 229, 0.03));
+        }
+
         .model-card .default-badge {
             position: absolute;
-            top: -10px;
-            right: 16px;
+            top: 12px;
+            right: 12px;
             background: var(--primary);
             color: white;
-            padding: 2px 10px;
-            border-radius: 10px;
-            font-size: 11px;
-            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
         }
-        .model-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-        .model-card-header h4 { font-size: 15px; font-weight: 600; }
-        .model-card-actions { display: flex; gap: 6px; }
-        .model-card-body { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; }
-        .model-field { display: flex; flex-direction: column; gap: 2px; }
-        .model-field .label { color: var(--gray-500); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .model-field .value { color: var(--gray-800); font-weight: 500; word-break: break-all; }
+
+        .model-card-header {
+            margin-bottom: 16px;
+        }
+
+        .model-card-header h4 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--gray-900);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .model-card-body {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            font-size: 13px;
+            margin-bottom: 20px;
+            flex-grow: 1;
+        }
+
+        .model-field {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 8px;
+            border-bottom: 1px dashed var(--gray-200);
+        }
+
+        .model-field:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .model-field .label {
+            color: var(--gray-500);
+            font-size: 12px;
+        }
+
+        .model-field .value {
+            color: var(--gray-800);
+            font-weight: 500;
+            text-align: right;
+            max-width: 60%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .model-card-actions {
+            display: flex;
+            gap: 8px;
+            border-top: 1px solid var(--gray-100);
+            padding-top: 16px;
+        }
+
+        .model-card-actions button {
+            flex: 1;
+            padding: 8px;
+            font-size: 12px;
+        }
+
+        /* Provider Badges */
         .provider-icon {
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
             font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        .provider-icon.anthropic { background: #F3E8FF; color: #7C3AED; }
-        .provider-icon.openai { background: #DCFCE7; color: #16A34A; }
-        .provider-icon.custom { background: #FEF3C7; color: #D97706; }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-        .form-divider { border-top: 1px solid var(--gray-200); margin: 20px 0; }
+
+        .provider-icon.anthropic {
+            background: #F3E8FF;
+            color: #7C3AED;
+        }
+
+        .provider-icon.openai {
+            background: #DCFCE7;
+            color: #16A34A;
+        }
+
+        .provider-icon.custom {
+            background: #FEF3C7;
+            color: #D97706;
+        }
+
+        /* Actions & Feedback */
+        .action-row {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid var(--gray-100);
+            justify-content: flex-end;
+        }
+
+        .btn-fancy {
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .btn-fancy.primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+        }
+
+        .btn-fancy.primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn-fancy.outline {
+            background: white;
+            color: var(--gray-700);
+            border: 1px solid var(--gray-300);
+        }
+
+        .btn-fancy.outline:hover {
+            background: var(--gray-50);
+            border-color: var(--gray-400);
+        }
+
         .test-result {
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 13px;
-            margin-top: 12px;
+            padding: 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            margin-top: 20px;
             display: none;
+            animation: fadeIn 0.3s ease;
         }
-        .test-result.success { background: #D1FAE5; color: #065F46; display: block; }
-        .test-result.error { background: #FEE2E2; color: #991B1B; display: block; }
-        .test-result.loading { background: var(--gray-100); color: var(--gray-600); display: flex; align-items: center; gap: 8px; }
-        .help-text { font-size: 12px; color: var(--gray-500); margin-top: 4px; }
+
+        .test-result.success {
+            background: #ECFDF5;
+            color: #065F46;
+            border: 1px solid #A7F3D0;
+        }
+
+        .test-result.error {
+            background: #FEF2F2;
+            color: #991B1B;
+            border: 1px solid #FECACA;
+        }
+
+        .test-result.loading {
+            background: var(--gray-50);
+            color: var(--gray-600);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border: 1px solid var(--gray-200);
+        }
+
         .empty-state {
             text-align: center;
-            padding: 40px;
-            color: var(--gray-400);
+            padding: 60px 20px;
+            background: var(--gray-50);
+            border-radius: 12px;
+            border: 2px dashed var(--gray-200);
         }
-        .empty-state svg { margin-bottom: 12px; }
+
+        .empty-state .icon {
+            width: 64px;
+            height: 64px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            color: var(--gray-400);
+            box-shadow: var(--shadow);
+        }
+
+        .empty-state h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--gray-800);
+            margin-bottom: 8px;
+        }
+
+        .empty-state p {
+            color: var(--gray-500);
+            font-size: 14px;
+        }
+
+        /* Refined Reference Section */
+        .reference-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 16px;
+        }
+
+        .reference-table th {
+            background: var(--gray-50);
+            color: var(--gray-600);
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .reference-table td {
+            padding: 16px;
+            border-bottom: 1px solid var(--gray-100);
+            font-size: 14px;
+            color: var(--gray-800);
+        }
+
+        .reference-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .reference-table code {
+            background: var(--gray-100);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 13px;
+            color: var(--primary-dark);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
     </style>
 </head>
+
 <body>
     <div class="app-layout">
+        <!-- Sidebar remains exactly the same -->
         <aside class="sidebar">
             <div class="sidebar-brand">
                 <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
-                    <rect width="48" height="48" rx="12" fill="#818CF8"/>
-                    <path d="M14 24L20 30L34 16" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                    <rect width="48" height="48" rx="12" fill="#818CF8" />
+                    <path d="M14 24L20 30L34 16" stroke="white" stroke-width="3" stroke-linecap="round"
+                        stroke-linejoin="round" />
                 </svg>
                 <h2>Process Extractor</h2>
             </div>
             <nav class="sidebar-nav">
                 <a href="/dashboard">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7" />
+                        <rect x="14" y="3" width="7" height="7" />
+                        <rect x="3" y="14" width="7" height="7" />
+                        <rect x="14" y="14" width="7" height="7" />
+                    </svg>
                     Dashboard
                 </a>
                 <a href="/feedback">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
                     Feedback
                 </a>
                 <a href="/settings" class="active">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3" />
+                        <path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                    </svg>
                     Settings
                 </a>
                 <a href="#" onclick="confirmLogout(event)">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
                     Sign Out
                 </a>
             </nav>
@@ -110,128 +540,209 @@
         </aside>
 
         <main class="main-content">
-            <h1 style="font-size:24px; font-weight:700; margin-bottom:24px;">Settings</h1>
+            <div class="settings-header">
+                <h1>Settings</h1>
+                <p>Manage your AI models and application preferences.</p>
+            </div>
 
             <!-- Add New Model Section -->
-            <div class="card settings-section">
-                <h2>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-                    Add AI Model Endpoint
-                </h2>
-                <p style="color:var(--gray-500); font-size:13px; margin-bottom:20px;">
-                    Configure your own AI model endpoints. Supports Anthropic, OpenAI, and any OpenAI-compatible custom server.
+            <div class="settings-section">
+                <div class="settings-section-title">
+                    <div class="icon-bg">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="16" />
+                            <line x1="8" y1="12" x2="16" y2="12" />
+                        </svg>
+                    </div>
+                    <h2>Add AI Model Endpoint</h2>
+                </div>
+                <p class="settings-section-desc">
+                    Configure your own AI model endpoints. Connect securely to Anthropic, OpenAI, or any compatible
+                    custom proxy/server.
                 </p>
 
                 <form id="addModelForm" onsubmit="return false;">
-                    <div class="form-row-3">
-                        <div class="form-group">
-                            <label>Provider</label>
-                            <select id="provider" onchange="onProviderChange()">
+                    <div class="form-row-3 form-group-wrapper">
+                        <div>
+                            <label class="form-label">Provider</label>
+                            <select id="provider" class="form-control" onchange="onProviderChange()">
                                 <option value="anthropic">Anthropic (Claude)</option>
                                 <option value="openai">OpenAI (GPT)</option>
                                 <option value="custom">Custom Endpoint</option>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label>Configuration Name</label>
-                            <input type="text" id="configName" placeholder="e.g., My Production Model">
+                        <div>
+                            <label class="form-label">Configuration Name</label>
+                            <input type="text" id="configName" class="form-control"
+                                placeholder="e.g., My Production Model">
                         </div>
-                        <div class="form-group">
-                            <label>Model ID</label>
-                            <input type="text" id="modelId" placeholder="e.g., claude-sonnet-4-6">
-                            <div class="help-text" id="modelIdHelp">Anthropic: claude-sonnet-4-6, claude-opus-4-6, claude-haiku-4-5-20251001</div>
+                        <div>
+                            <label class="form-label">Model ID</label>
+                            <input type="text" id="modelId" class="form-control" placeholder="e.g., claude-sonnet-4-6">
+                            <div class="help-text" id="modelIdHelp">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <line x1="12" y1="16" x2="12" y2="12" />
+                                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                                </svg>
+                                Anthropic: claude-sonnet-4-6, claude-opus-4-6...
+                            </div>
                         </div>
                     </div>
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>API Key</label>
+                    <div class="form-row form-group-wrapper">
+                        <div>
+                            <label class="form-label">API Key</label>
                             <div style="position:relative;">
-                                <input type="password" id="apiKey" placeholder="sk-ant-... or sk-...">
-                                <button type="button" onclick="toggleKeyVisibility()" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--gray-400);" title="Toggle visibility">
-                                    <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <input type="password" id="apiKey" class="form-control"
+                                    placeholder="sk-ant-... or sk-...">
+                                <button type="button" onclick="toggleKeyVisibility()"
+                                    style="position:absolute; right:12px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--gray-400);"
+                                    title="Toggle visibility">
+                                    <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                        <circle cx="12" cy="12" r="3" />
+                                    </svg>
                                 </button>
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label>Base URL <span style="color:var(--gray-400); font-weight:normal;">(optional for Anthropic/OpenAI)</span></label>
-                            <input type="text" id="baseUrl" placeholder="https://your-server.com/v1">
-                            <div class="help-text" id="baseUrlHelp">Leave empty to use the default Anthropic API. Set for self-hosted or proxy endpoints.</div>
+                        <div>
+                            <label class="form-label">Base URL <span
+                                    style="font-weight:normal; color:var(--gray-400); font-size:12px;">(optional)</span></label>
+                            <input type="text" id="baseUrl" class="form-control"
+                                placeholder="https://api.your-proxy.com/v1">
+                            <div class="help-text" id="baseUrlHelp">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <line x1="12" y1="16" x2="12" y2="12" />
+                                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                                </svg>
+                                Leave empty to use the provider's default API.
+                            </div>
                         </div>
                     </div>
 
-                    <div class="form-row-3">
-                        <div class="form-group">
-                            <label>Max Tokens</label>
-                            <input type="number" id="maxTokens" value="8000" min="100" max="200000">
+                    <div class="form-row form-group-wrapper" style="align-items: center;">
+                        <div>
+                            <label class="form-label">Max Tokens</label>
+                            <input type="number" id="maxTokens" class="form-control" value="8000" min="100" max="200000"
+                                style="max-width: 200px;">
                         </div>
-                        <div class="form-group" style="display:flex; align-items:flex-end;">
-                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                                <input type="checkbox" id="isDefault" style="width:auto;"> Set as default model
+                        <div style="padding-top: 10px;">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="isDefault">
+                                <span class="slider"></span>
+                                <span class="toggle-label">Set as default model for all requests</span>
                             </label>
                         </div>
-                        <div></div>
-                    </div>
-
-                    <div style="display:flex; gap:8px; margin-top:8px;">
-                        <button class="btn btn-outline" onclick="testConnection()">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                            Test Connection
-                        </button>
-                        <button class="btn btn-primary" onclick="saveModel()">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                            Save Configuration
-                        </button>
                     </div>
 
                     <div id="testResult" class="test-result"></div>
+
+                    <div class="action-row">
+                        <button type="button" class="btn-fancy outline" onclick="testConnection()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                                <polyline points="22 4 12 14.01 9 11.01" />
+                            </svg>
+                            Test Connection
+                        </button>
+                        <button type="button" class="btn-fancy primary" onclick="saveModel()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                                <polyline points="17 21 17 13 7 13 7 21" />
+                                <polyline points="7 3 7 8 15 8" />
+                            </svg>
+                            Save Endpoint
+                        </button>
+                    </div>
                 </form>
             </div>
 
             <!-- Saved Models -->
-            <div class="card settings-section">
-                <h2>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
-                    Saved Model Configurations
-                </h2>
-                <div id="modelsList">
-                    <div class="empty-state">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9V12a2 2 0 0 1 0 4z"/></svg>
-                        <p>No model configurations saved yet.</p>
-                        <p style="font-size:12px;">Add your first AI model endpoint above.</p>
+            <div class="settings-section">
+                <div class="settings-section-title">
+                    <div class="icon-bg" style="background: #ECFDF5; color: #10B981;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                            <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+                        </svg>
+                    </div>
+                    <h2>Saved Configurations</h2>
+                </div>
+                <div id="modelsList" class="model-grid">
+                    <!-- Javascript populates here -->
+                    <div class="empty-state" style="grid-column: 1 / -1;">
+                        <div class="icon">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path
+                                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9V12a2 2 0 0 1 0 4z" />
+                            </svg>
+                        </div>
+                        <h3>No endpoints configured</h3>
+                        <p>Add your first AI model endpoint above to get started.</p>
                     </div>
                 </div>
             </div>
 
             <!-- Quick Reference -->
-            <div class="card settings-section">
-                <h2>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                    Quick Reference
-                </h2>
-                <div style="font-size:13px;">
-                    <table class="rec-table">
-                        <tr><th>Provider</th><th>Default Base URL</th><th>Common Models</th></tr>
-                        <tr>
-                            <td><span class="provider-icon anthropic">Anthropic</span></td>
-                            <td><code>https://api.anthropic.com</code></td>
-                            <td>claude-opus-4-6, claude-sonnet-4-6, claude-haiku-4-5-20251001</td>
-                        </tr>
-                        <tr>
-                            <td><span class="provider-icon openai">OpenAI</span></td>
-                            <td><code>https://api.openai.com/v1</code></td>
-                            <td>gpt-4o, gpt-4-turbo, gpt-3.5-turbo</td>
-                        </tr>
-                        <tr>
-                            <td><span class="provider-icon custom">Custom</span></td>
-                            <td><code>https://your-server.com/v1</code></td>
-                            <td>Any OpenAI-compatible endpoint (vLLM, Ollama, LiteLLM, etc.)</td>
-                        </tr>
-                    </table>
-                    <div style="margin-top:12px; padding:12px; background:var(--gray-50); border-radius:8px;">
-                        <strong>Custom Endpoints:</strong> Your server must expose an OpenAI-compatible <code>/chat/completions</code> endpoint.
-                        The app will POST to <code>{base_url}/chat/completions</code> with a standard messages payload. Works with vLLM, Ollama (with OpenAI compat), LiteLLM, LocalAI, and similar servers.
+            <div class="settings-section">
+                <div class="settings-section-title">
+                    <div class="icon-bg" style="background: #EFF6FF; color: #3B82F6;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
                     </div>
+                    <h2>API Reference Guide</h2>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="reference-table">
+                        <thead>
+                            <tr>
+                                <th>Provider</th>
+                                <th>Default Base URL</th>
+                                <th>Recommended Models</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="provider-icon anthropic">Anthropic</span></td>
+                                <td><code>https://api.anthropic.com</code></td>
+                                <td>claude-opus-4-6, claude-sonnet-4-6, claude-haiku</td>
+                            </tr>
+                            <tr>
+                                <td><span class="provider-icon openai">OpenAI</span></td>
+                                <td><code>https://api.openai.com/v1</code></td>
+                                <td>gpt-4o, gpt-4-turbo, gpt-3.5-turbo</td>
+                            </tr>
+                            <tr>
+                                <td><span class="provider-icon custom">Custom</span></td>
+                                <td><code>https://your-server.com/v1</code></td>
+                                <td>Any OpenAI-compatible endpoint (vLLM, Ollama, etc.)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div
+                    style="margin-top: 20px; padding: 16px; background: #FFFBEB; border: 1px solid #FDE68A; border-left: 4px solid #F59E0B; border-radius: 8px;">
+                    <p style="font-size: 13px; color: #92400E; margin: 0;">
+                        <strong style="display: block; margin-bottom: 4px;">Custom Endpoint Note:</strong>
+                        Your server must expose an OpenAI-compatible <code>/chat/completions</code> endpoint. The
+                        application uses a standard messages payload, compatible with vLLM, Ollama, LiteLLM, and
+                        LocalAI.
+                    </p>
                 </div>
             </div>
         </main>
@@ -240,142 +751,165 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <script>
-    function showToast(message, type = 'success') {
-        const container = document.getElementById('toastContainer');
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        toast.textContent = message;
-        container.appendChild(toast);
-        setTimeout(() => toast.remove(), 4000);
-    }
-
-    function toggleKeyVisibility() {
-        const input = document.getElementById('apiKey');
-        const icon = document.getElementById('eyeIcon');
-        if (input.type === 'password') {
-            input.type = 'text';
-            icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
-        } else {
-            input.type = 'password';
-            icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.style.display = 'flex';
+            toast.style.cssText = `
+            background: white; border-radius: 10px; padding: 14px 20px; 
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); margin-bottom: 12px; 
+            display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 500;
+            border-left: 4px solid ${type === 'success' ? '#10B981' : '#EF4444'};
+            animation: fadeIn 0.3s ease;
+        `;
+            toast.innerHTML = `
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${type === 'success' ? '#10B981' : '#EF4444'}" stroke-width="2">
+                ${type === 'success' ? '<polyline points="20 6 9 17 4 12"/>' : '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'}
+            </svg>
+            ${message}
+        `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-10px)';
+                toast.style.transition = 'all 0.3s';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
         }
-    }
 
-    function onProviderChange() {
-        const provider = document.getElementById('provider').value;
-        const modelInput = document.getElementById('modelId');
-        const helpText = document.getElementById('modelIdHelp');
-        const baseUrlHelp = document.getElementById('baseUrlHelp');
-
-        switch (provider) {
-            case 'anthropic':
-                modelInput.placeholder = 'e.g., claude-sonnet-4-6';
-                helpText.textContent = 'Anthropic: claude-sonnet-4-6, claude-opus-4-6, claude-haiku-4-5-20251001';
-                baseUrlHelp.textContent = 'Leave empty to use the default Anthropic API. Set for self-hosted or proxy endpoints.';
-                break;
-            case 'openai':
-                modelInput.placeholder = 'e.g., gpt-4o';
-                helpText.textContent = 'OpenAI: gpt-4o, gpt-4-turbo, gpt-3.5-turbo';
-                baseUrlHelp.textContent = 'Leave empty for OpenAI API. Set for Azure OpenAI or compatible proxies.';
-                break;
-            case 'custom':
-                modelInput.placeholder = 'e.g., my-fine-tuned-model';
-                helpText.textContent = 'Enter the exact model ID your server expects.';
-                baseUrlHelp.textContent = 'Required: Full URL to your OpenAI-compatible API server (e.g., https://my-server:8080/v1)';
-                break;
-        }
-    }
-
-    function getFormData() {
-        return {
-            provider: document.getElementById('provider').value,
-            name: document.getElementById('configName').value || 'My Model',
-            model_id: document.getElementById('modelId').value,
-            api_key: document.getElementById('apiKey').value,
-            base_url: document.getElementById('baseUrl').value,
-            max_tokens: parseInt(document.getElementById('maxTokens').value) || 8000,
-            is_default: document.getElementById('isDefault').checked,
-        };
-    }
-
-    async function testConnection() {
-        const data = getFormData();
-        if (!data.api_key) { showToast('Please enter an API key', 'error'); return; }
-        if (!data.model_id) { showToast('Please enter a model ID', 'error'); return; }
-
-        const resultDiv = document.getElementById('testResult');
-        resultDiv.className = 'test-result loading';
-        resultDiv.innerHTML = '<div class="loading-spinner" style="width:16px;height:16px;border-width:2px;"></div> Testing connection...';
-        resultDiv.style.display = 'flex';
-
-        try {
-            const resp = await fetch('/api/settings/models/test', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
-            });
-            const result = await resp.json();
-            if (result.status === 'success') {
-                resultDiv.className = 'test-result success';
-                resultDiv.textContent = result.message;
+        function toggleKeyVisibility() {
+            const input = document.getElementById('apiKey');
+            const icon = document.getElementById('eyeIcon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
             } else {
+                input.type = 'password';
+                icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+            }
+        }
+
+        function onProviderChange() {
+            const provider = document.getElementById('provider').value;
+            const modelInput = document.getElementById('modelId');
+            const helpText = document.getElementById('modelIdHelp');
+            const baseUrlHelp = document.getElementById('baseUrlHelp');
+
+            const svgIcon = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> `;
+
+            switch (provider) {
+                case 'anthropic':
+                    modelInput.placeholder = 'e.g., claude-sonnet-4-6';
+                    helpText.innerHTML = svgIcon + 'Anthropic: claude-sonnet-4-6, claude-opus-4-6, claude-haiku-4-5-20251001';
+                    baseUrlHelp.innerHTML = svgIcon + 'Leave empty to use the default Anthropic API. Set for self-hosted or proxy endpoints.';
+                    break;
+                case 'openai':
+                    modelInput.placeholder = 'e.g., gpt-4o';
+                    helpText.innerHTML = svgIcon + 'OpenAI: gpt-4o, gpt-4-turbo, gpt-3.5-turbo';
+                    baseUrlHelp.innerHTML = svgIcon + 'Leave empty for OpenAI API. Set for Azure OpenAI or compatible proxies.';
+                    break;
+                case 'custom':
+                    modelInput.placeholder = 'e.g., my-fine-tuned-model';
+                    helpText.innerHTML = svgIcon + 'Enter the exact model ID your server expects.';
+                    baseUrlHelp.innerHTML = svgIcon + 'Required: Full URL to your OpenAI-compatible API server (e.g., https://my-server:8080/v1)';
+                    break;
+            }
+        }
+
+        function getFormData() {
+            return {
+                provider: document.getElementById('provider').value,
+                name: document.getElementById('configName').value || 'My Model',
+                model_id: document.getElementById('modelId').value,
+                api_key: document.getElementById('apiKey').value,
+                base_url: document.getElementById('baseUrl').value,
+                max_tokens: parseInt(document.getElementById('maxTokens').value) || 8000,
+                is_default: document.getElementById('isDefault').checked,
+            };
+        }
+
+        async function testConnection() {
+            const data = getFormData();
+            if (!data.api_key) { showToast('Please enter an API key', 'error'); return; }
+            if (!data.model_id) { showToast('Please enter a model ID', 'error'); return; }
+
+            const resultDiv = document.getElementById('testResult');
+            resultDiv.className = 'test-result loading';
+            resultDiv.innerHTML = '<div class="loading-spinner" style="width:16px;height:16px;border-width:2px;border-top-color:var(--gray-600)"></div> Testing connection...';
+            resultDiv.style.display = 'flex';
+
+            try {
+                const resp = await fetch('/api/settings/models/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+                const result = await resp.json();
+                if (result.status === 'success') {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ${result.message}`;
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> ${result.message}`;
+                }
+            } catch (err) {
                 resultDiv.className = 'test-result error';
-                resultDiv.textContent = result.message;
+                resultDiv.textContent = 'Request failed: ' + err.message;
             }
-        } catch (err) {
-            resultDiv.className = 'test-result error';
-            resultDiv.textContent = 'Request failed: ' + err.message;
         }
-    }
 
-    async function saveModel() {
-        const data = getFormData();
-        if (!data.api_key) { showToast('API key is required', 'error'); return; }
-        if (!data.model_id) { showToast('Model ID is required', 'error'); return; }
+        async function saveModel() {
+            const data = getFormData();
+            if (!data.api_key) { showToast('API key is required', 'error'); return; }
+            if (!data.model_id) { showToast('Model ID is required', 'error'); return; }
 
-        try {
-            const resp = await fetch('/api/settings/models', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
-            });
-            if (resp.ok) {
-                showToast('Model configuration saved!');
-                // Clear form
-                document.getElementById('configName').value = '';
-                document.getElementById('modelId').value = '';
-                document.getElementById('apiKey').value = '';
-                document.getElementById('baseUrl').value = '';
-                document.getElementById('isDefault').checked = false;
-                document.getElementById('testResult').style.display = 'none';
-                loadModels();
-            } else {
-                const err = await resp.json();
-                showToast(err.detail || 'Failed to save', 'error');
+            try {
+                const resp = await fetch('/api/settings/models', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+                if (resp.ok) {
+                    showToast('Model configuration saved!');
+                    // Clear form
+                    document.getElementById('configName').value = '';
+                    document.getElementById('modelId').value = '';
+                    document.getElementById('apiKey').value = '';
+                    document.getElementById('baseUrl').value = '';
+                    document.getElementById('isDefault').checked = false;
+                    document.getElementById('testResult').style.display = 'none';
+                    loadModels();
+                } else {
+                    const err = await resp.json();
+                    showToast(err.detail || 'Failed to save', 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
             }
-        } catch (err) {
-            showToast('Error: ' + err.message, 'error');
         }
-    }
 
-    async function loadModels() {
-        try {
-            const resp = await fetch('/api/settings/models');
-            const models = await resp.json();
-            const container = document.getElementById('modelsList');
+        async function loadModels() {
+            try {
+                const resp = await fetch('/api/settings/models');
+                const models = await resp.json();
+                const container = document.getElementById('modelsList');
 
-            if (!models.length) {
-                container.innerHTML = `<div class="empty-state">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9V12a2 2 0 0 1 0 4z"/></svg>
-                    <p>No model configurations saved yet.</p>
-                    <p style="font-size:12px;">Add your first AI model endpoint above.</p>
+                if (!models.length) {
+                    container.innerHTML = `
+                <div class="empty-state" style="grid-column: 1 / -1;">
+                    <div class="icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9V12a2 2 0 0 1 0 4z"/></svg>
+                    </div>
+                    <h3>No endpoints configured</h3>
+                    <p>Add your first AI model endpoint above to get started.</p>
                 </div>`;
-                return;
-            }
+                    return;
+                }
 
-            let html = '';
-            models.forEach(m => {
-                html += `
+                let html = '';
+                models.forEach(m => {
+                    html += `
                 <div class="model-card ${m.is_default ? 'is-default' : ''}">
                     ${m.is_default ? '<div class="default-badge">DEFAULT</div>' : ''}
                     <div class="model-card-header">
@@ -383,18 +917,11 @@
                             <span class="provider-icon ${m.provider}">${m.provider}</span>
                             ${m.name}
                         </h4>
-                        <div class="model-card-actions">
-                            ${!m.is_default ? `<button class="btn btn-sm btn-outline" onclick="setDefault(${m.id})">Set Default</button>` : ''}
-                            <button class="btn btn-sm btn-outline" onclick="toggleActive(${m.id}, ${!m.is_active})" style="${!m.is_active ? 'opacity:0.5' : ''}">
-                                ${m.is_active ? 'Active' : 'Inactive'}
-                            </button>
-                            <button class="btn btn-sm btn-danger" onclick="deleteModel(${m.id})">Delete</button>
-                        </div>
                     </div>
                     <div class="model-card-body">
                         <div class="model-field">
                             <span class="label">Model ID</span>
-                            <span class="value">${m.model_id}</span>
+                            <span class="value" title="${m.model_id}">${m.model_id}</span>
                         </div>
                         <div class="model-field">
                             <span class="label">API Key</span>
@@ -402,82 +929,116 @@
                         </div>
                         <div class="model-field">
                             <span class="label">Base URL</span>
-                            <span class="value">${m.base_url || '(default)'}</span>
+                            <span class="value" title="${m.base_url || '(default)'}">${m.base_url || '(default)'}</span>
                         </div>
-                        <div class="model-field">
+                        <div class="model-field" style="border:none; padding-bottom:0;">
                             <span class="label">Max Tokens</span>
                             <span class="value">${m.max_tokens}</span>
                         </div>
                     </div>
+                    <div class="model-card-actions">
+                        ${!m.is_default ? `<button class="btn btn-sm btn-outline" onclick="setDefault(${m.id})">Set Default</button>` : `<button class="btn btn-sm btn-outline" disabled style="opacity:0.5;">Default Active</button>`}
+                        <button class="btn btn-sm ${m.is_active ? 'btn-outline' : ''}" onclick="toggleActive(${m.id}, ${!m.is_active})" style="${!m.is_active ? 'background:#F3F4F6;' : ''}">
+                            ${m.is_active ? 'Active' : 'Turn On'}
+                        </button>
+                        <button class="btn btn-sm" style="background:#FEF2F2; color:#991B1B; border:1px solid #FECACA;" onclick="deleteModel(${m.id})">Delete</button>
+                    </div>
                 </div>`;
-            });
-            container.innerHTML = html;
-        } catch (err) {
-            console.error('Failed to load models:', err);
+                });
+                container.innerHTML = html;
+            } catch (err) {
+                console.error('Failed to load models:', err);
+            }
         }
-    }
 
-    async function setDefault(id) {
-        try {
-            await fetch(`/api/settings/models/${id}/set-default`, { method: 'POST' });
-            showToast('Default model updated');
-            loadModels();
-        } catch (err) {
-            showToast('Failed to update', 'error');
+        async function setDefault(id) {
+            try {
+                await fetch(`/api/settings/models/${id}/set-default`, { method: 'POST' });
+                showToast('Default model updated');
+                loadModels();
+            } catch (err) {
+                showToast('Failed to update', 'error');
+            }
         }
-    }
 
-    async function toggleActive(id, active) {
-        try {
-            await fetch(`/api/settings/models/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ is_active: active }),
-            });
-            showToast(active ? 'Model activated' : 'Model deactivated');
-            loadModels();
-        } catch (err) {
-            showToast('Failed to update', 'error');
+        async function toggleActive(id, active) {
+            try {
+                await fetch(`/api/settings/models/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_active: active }),
+                });
+                showToast(active ? 'Model activated' : 'Model deactivated');
+                loadModels();
+            } catch (err) {
+                showToast('Failed to update', 'error');
+            }
         }
-    }
 
-    async function deleteModel(id) {
-        if (!confirm('Delete this model configuration?')) return;
-        try {
-            await fetch(`/api/settings/models/${id}`, { method: 'DELETE' });
-            showToast('Model deleted');
-            loadModels();
-        } catch (err) {
-            showToast('Failed to delete', 'error');
+        async function deleteModel(id) {
+            if (!confirm('Delete this model configuration?')) return;
+            try {
+                await fetch(`/api/settings/models/${id}`, { method: 'DELETE' });
+                showToast('Model deleted', 'success');
+                loadModels();
+            } catch (err) {
+                showToast('Failed to delete', 'error');
+            }
         }
-    }
 
-    // Load models on page ready
-    loadModels();
+        // Load models on page ready
+        loadModels();
     </script>
 
     <!-- Logout confirmation modal -->
-    <div id="logoutModal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(15,23,42,0.55);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
-        <div style="background:white;border-radius:18px;padding:32px 28px;max-width:380px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,0.2);text-align:center;animation:fadeInScale .18s ease;">
-            <div style="width:56px;height:56px;border-radius:50%;background:#FEE2E2;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    <div id="logoutModal"
+        style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(15,23,42,0.55);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+        <div
+            style="background:white;border-radius:18px;padding:32px 28px;max-width:380px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,0.2);text-align:center;animation:fadeInScale .18s ease;">
+            <div
+                style="width:56px;height:56px;border-radius:50%;background:#FEE2E2;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2.5">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
             </div>
             <h3 style="font-size:18px;font-weight:700;color:#111827;margin:0 0 8px;">Sign Out?</h3>
-            <p style="font-size:14px;color:#6B7280;margin:0 0 24px;line-height:1.6;">You will be logged out of Process Extractor Pro. Any unsaved work will be lost.</p>
+            <p style="font-size:14px;color:#6B7280;margin:0 0 24px;line-height:1.6;">You will be logged out of Process
+                Extractor Pro. Any unsaved work will be lost.</p>
             <div style="display:flex;gap:10px;">
-                <button onclick="closeLogoutModal()" style="flex:1;padding:11px;border-radius:10px;border:1.5px solid #E5E7EB;background:white;font-size:14px;font-weight:600;color:#374151;cursor:pointer;">Cancel</button>
-                <a href="/logout" style="flex:1;padding:11px;border-radius:10px;background:#EF4444;color:white;font-size:14px;font-weight:700;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px;">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                <button onclick="closeLogoutModal()"
+                    style="flex:1;padding:11px;border-radius:10px;border:1.5px solid #E5E7EB;background:white;font-size:14px;font-weight:600;color:#374151;cursor:pointer;">Cancel</button>
+                <a href="/logout"
+                    style="flex:1;padding:11px;border-radius:10px;background:#EF4444;color:white;font-size:14px;font-weight:700;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
                     Sign Out
                 </a>
             </div>
         </div>
     </div>
-    <style>@keyframes fadeInScale { from { opacity:0; transform:scale(0.93); } to { opacity:1; transform:scale(1); } }</style>
+    <style>
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.93);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+    </style>
     <script>
-    function confirmLogout(e) { e.preventDefault(); const m = document.getElementById('logoutModal'); m.style.display = 'flex'; }
-    function closeLogoutModal() { document.getElementById('logoutModal').style.display = 'none'; }
-    document.getElementById('logoutModal').addEventListener('click', function(e) { if (e.target === this) closeLogoutModal(); });
+        function confirmLogout(e) { e.preventDefault(); const m = document.getElementById('logoutModal'); m.style.display = 'flex'; }
+        function closeLogoutModal() { document.getElementById('logoutModal').style.display = 'none'; }
+        document.getElementById('logoutModal').addEventListener('click', function (e) { if (e.target === this) closeLogoutModal(); });
     </script>
 </body>
+
 </html>

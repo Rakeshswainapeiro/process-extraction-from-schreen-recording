@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upgrade — Process Extractor Pro</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { background: var(--gray-50); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; min-height: 100vh; display: flex; flex-direction: column; }
+
+    .topbar { background: #fff; border-bottom: 1px solid var(--gray-200); padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar-logo { font-size: 16px; font-weight: 700; color: var(--gray-800); text-decoration: none; }
+    .topbar-right { display: flex; align-items: center; gap: 16px; font-size: 13px; }
+    .topbar-right a { color: var(--primary); text-decoration: none; }
+
+    .page-wrap { max-width: 900px; margin: 0 auto; padding: 48px 24px; flex: 1; }
+    .page-header { text-align: center; margin-bottom: 40px; }
+    .page-header h1 { font-size: 32px; font-weight: 800; color: var(--gray-900); margin-bottom: 10px; }
+    .page-header p { font-size: 16px; color: var(--gray-500); }
+
+    /* Usage summary */
+    .usage-summary { background: #fff; border: 1px solid var(--gray-200); border-radius: 12px; padding: 20px 24px; margin-bottom: 36px; display: flex; align-items: center; gap: 32px; flex-wrap: wrap; }
+    .usage-stat { text-align: center; }
+    .usage-stat .val { font-size: 22px; font-weight: 700; color: var(--gray-800); }
+    .usage-stat .lbl { font-size: 12px; color: var(--gray-400); margin-top: 2px; }
+    .usage-stat.warn .val { color: #d97706; }
+    .usage-stat.exhausted .val { color: #dc2626; }
+
+    /* Pricing cards */
+    .pricing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 40px; }
+    @media (max-width: 640px) { .pricing-grid { grid-template-columns: 1fr; } }
+    .pricing-card { background: #fff; border: 1.5px solid var(--gray-200); border-radius: 16px; padding: 28px; transition: border-color .2s, box-shadow .2s; cursor: pointer; }
+    .pricing-card:hover, .pricing-card.selected { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79,70,229,.1); }
+    .pricing-card .icon { font-size: 32px; margin-bottom: 12px; }
+    .pricing-card h3 { font-size: 18px; font-weight: 700; color: var(--gray-800); margin-bottom: 6px; }
+    .pricing-card .desc { font-size: 13px; color: var(--gray-500); margin-bottom: 20px; line-height: 1.5; }
+
+    /* Pack selector */
+    .pack-options { display: flex; flex-direction: column; gap: 10px; }
+    .pack-option { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px;
+      border: 1.5px solid var(--gray-200); border-radius: 10px; cursor: pointer; transition: all .15s; }
+    .pack-option:hover { border-color: var(--primary); background: rgba(79,70,229,.03); }
+    .pack-option.selected { border-color: var(--primary); background: rgba(79,70,229,.06); }
+    .pack-option input[type="radio"] { accent-color: var(--primary); margin-right: 10px; }
+    .pack-option .pack-label { font-size: 14px; font-weight: 600; color: var(--gray-700); }
+    .pack-option .pack-price { font-size: 14px; font-weight: 700; color: var(--primary); }
+    .pack-option .pack-sub { font-size: 11px; color: var(--gray-400); margin-top: 1px; }
+
+    /* CTA */
+    .cta-wrap { text-align: center; margin-top: 32px; }
+    .btn-cta { display: inline-flex; align-items: center; gap: 8px; padding: 14px 36px; background: var(--primary);
+      color: #fff; border-radius: 12px; font-size: 15px; font-weight: 700; border: none; cursor: pointer;
+      text-decoration: none; transition: background .15s, transform .1s; }
+    .btn-cta:hover { background: #3730a3; transform: translateY(-1px); }
+    .btn-cta:active { transform: translateY(0); }
+    .btn-secondary { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px;
+      background: transparent; border: 1.5px solid var(--gray-200); border-radius: 10px; color: var(--gray-600);
+      font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; transition: background .15s; }
+    .btn-secondary:hover { background: var(--gray-50); }
+
+    /* Alert */
+    .alert { padding: 14px 18px; border-radius: 10px; font-size: 13px; margin-bottom: 16px; display: none; }
+    .alert.show { display: block; }
+    .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+    .divider { text-align: center; color: var(--gray-300); font-size: 12px; margin: 24px 0; }
+    .history-link { text-align: center; margin-top: 16px; font-size: 13px; color: var(--gray-500); }
+    .history-link a { color: var(--primary); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a href="/dashboard" class="topbar-logo">Process Extractor Pro</a>
+    <div class="topbar-right">
+      <span>Hi, {{ user.full_name }}</span>
+      <a href="/dashboard">← Back to Dashboard</a>
+    </div>
+  </div>
+
+  <div class="page-wrap">
+    <div class="page-header">
+      <h1>Upgrade Your Plan</h1>
+      <p>Purchase sessions or token packs to continue using AI-powered process analysis.</p>
+    </div>
+
+    <!-- Current usage summary -->
+    <div class="usage-summary" id="usage-summary">
+      <div class="usage-stat"><div class="val" id="us-trial">—</div><div class="lbl">Trial Used</div></div>
+      <div class="usage-stat"><div class="val" id="us-sessions">—</div><div class="lbl">Sessions Remaining</div></div>
+      <div class="usage-stat"><div class="val" id="us-tokens">—</div><div class="lbl">Tokens Remaining</div></div>
+      <div class="usage-stat"><div class="val" id="us-total-sessions">—</div><div class="lbl">Total Sessions Used</div></div>
+    </div>
+
+    <div id="alert-success" class="alert alert-success"></div>
+    <div id="alert-error" class="alert alert-error"></div>
+
+    <div class="pricing-grid">
+
+      <!-- Sessions pack -->
+      <div class="pricing-card selected" id="card-sessions" onclick="selectCard('sessions')">
+        <div class="icon">⚡</div>
+        <h3>Session Packs</h3>
+        <p class="desc">Each session = one complete process analysis. Best if you record frequently.</p>
+        <div class="pack-options" id="packs-sessions">
+          <label class="pack-option selected">
+            <div style="display:flex; align-items:center; flex:1;">
+              <input type="radio" name="session-pack" value="5" data-price="499" checked>
+              <div><div class="pack-label">5 Sessions</div><div class="pack-sub">$0.99 each</div></div>
+            </div>
+            <div class="pack-price">$4.99</div>
+          </label>
+          <label class="pack-option">
+            <div style="display:flex; align-items:center; flex:1;">
+              <input type="radio" name="session-pack" value="20" data-price="1499">
+              <div><div class="pack-label">20 Sessions</div><div class="pack-sub">$0.74 each — save 25%</div></div>
+            </div>
+            <div class="pack-price">$14.99</div>
+          </label>
+          <label class="pack-option">
+            <div style="display:flex; align-items:center; flex:1;">
+              <input type="radio" name="session-pack" value="100" data-price="4999">
+              <div><div class="pack-label">100 Sessions</div><div class="pack-sub">$0.49 each — save 50%</div></div>
+            </div>
+            <div class="pack-price">$49.99</div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Token pack -->
+      <div class="pricing-card" id="card-tokens" onclick="selectCard('tokens')">
+        <div class="icon">🪙</div>
+        <h3>Token Packs</h3>
+        <p class="desc">Pay per token consumed. Best for variable workloads or large complex recordings.</p>
+        <div class="pack-options" id="packs-tokens">
+          <label class="pack-option selected">
+            <div style="display:flex; align-items:center; flex:1;">
+              <input type="radio" name="token-pack" value="500000" data-price="499" checked>
+              <div><div class="pack-label">500K Tokens</div><div class="pack-sub">~50 typical analyses</div></div>
+            </div>
+            <div class="pack-price">$4.99</div>
+          </label>
+          <label class="pack-option">
+            <div style="display:flex; align-items:center; flex:1;">
+              <input type="radio" name="token-pack" value="2000000" data-price="1499">
+              <div><div class="pack-label">2M Tokens</div><div class="pack-sub">~200 analyses — save 25%</div></div>
+            </div>
+            <div class="pack-price">$14.99</div>
+          </label>
+          <label class="pack-option">
+            <div style="display:flex; align-items:center; flex:1;">
+              <input type="radio" name="token-pack" value="10000000" data-price="4999">
+              <div><div class="pack-label">10M Tokens</div><div class="pack-sub">~1,000 analyses — save 50%</div></div>
+            </div>
+            <div class="pack-price">$49.99</div>
+          </label>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="cta-wrap">
+      <button class="btn-cta" onclick="purchase()" id="btn-purchase">
+        <span id="btn-text">Purchase Sessions Pack</span>
+      </button>
+      <div style="margin-top:12px; font-size:12px; color:var(--gray-400);">
+        Demo mode: purchases are applied instantly without real payment processing.
+      </div>
+    </div>
+
+    <div class="divider">— or —</div>
+
+    <div style="text-align:center;">
+      <a href="/settings" class="btn-secondary">⚙️ Configure your own AI model key</a>
+    </div>
+
+    <div class="history-link">
+      <a href="/settings">View purchase history in Settings →</a>
+    </div>
+  </div>
+
+  <script>
+    let selectedType = 'sessions';
+
+    function selectCard(type) {
+      selectedType = type;
+      document.getElementById('card-sessions').classList.toggle('selected', type === 'sessions');
+      document.getElementById('card-tokens').classList.toggle('selected', type === 'tokens');
+      updateBtnLabel();
+    }
+
+    function updateBtnLabel() {
+      const pack = getSelectedPack();
+      const label = selectedType === 'sessions'
+        ? `Purchase ${pack.qty} Session${pack.qty > 1 ? 's' : ''} ��� $${(pack.price / 100).toFixed(2)}`
+        : `Purchase ${fmtNum(pack.qty)} Tokens — $${(pack.price / 100).toFixed(2)}`;
+      document.getElementById('btn-text').textContent = label;
+    }
+
+    function getSelectedPack() {
+      const name = selectedType === 'sessions' ? 'session-pack' : 'token-pack';
+      const checked = document.querySelector(`input[name="${name}"]:checked`);
+      return { qty: parseInt(checked.value), price: parseInt(checked.dataset.price) };
+    }
+
+    // Highlight selected radio option visually
+    document.querySelectorAll('.pack-option input[type="radio"]').forEach(r => {
+      r.addEventListener('change', () => {
+        r.closest('.pack-options').querySelectorAll('.pack-option').forEach(o => o.classList.remove('selected'));
+        r.closest('.pack-option').classList.add('selected');
+        updateBtnLabel();
+      });
+    });
+
+    async function purchase() {
+      const pack = getSelectedPack();
+      const btn = document.getElementById('btn-purchase');
+      btn.disabled = true;
+      btn.querySelector('#btn-text').textContent = 'Processing...';
+
+      try {
+        const res = await fetch('/api/usage/purchases', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            purchase_type: selectedType,
+            quantity: pack.qty,
+            amount_usd_cents: pack.price,
+            payment_reference: 'demo-' + Date.now(),
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || 'Purchase failed');
+        }
+        const data = await res.json();
+        showAlert('success', `Success! ${pack.qty} ${selectedType} added to your account. Redirecting...`);
+        setTimeout(() => location.href = '/dashboard', 2000);
+      } catch(e) {
+        showAlert('error', e.message);
+      } finally {
+        btn.disabled = false;
+        updateBtnLabel();
+      }
+    }
+
+    function showAlert(type, msg) {
+      const el = document.getElementById('alert-' + type);
+      el.textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 5000);
+    }
+
+    function fmtNum(n) { return n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'k' : n; }
+
+    async function loadUsage() {
+      try {
+        const res = await fetch('/api/usage/me', { credentials: 'include' });
+        if (!res.ok) return;
+        const q = await res.json();
+        document.getElementById('us-trial').textContent = q.trial_sessions_used + '/' + q.trial_sessions_max;
+        document.getElementById('us-sessions').textContent = q.remaining_sessions;
+        document.getElementById('us-tokens').textContent = fmtNum(q.remaining_tokens);
+        document.getElementById('us-total-sessions').textContent = q.used_sessions;
+      } catch(e) {}
+    }
+
+    loadUsage();
+    updateBtnLabel();
+  </script>
+</body>
+</html>

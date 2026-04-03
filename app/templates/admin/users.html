@@ -1,0 +1,148 @@
+{% extends "admin/base.html" %}
+{% set active_page = "users" %}
+{% block title %}Users{% endblock %}
+{% block page_title %}User Management{% endblock %}
+{% block breadcrumb %}Admin / Users{% endblock %}
+{% block topbar_actions %}
+<button class="btn btn-primary btn-sm" onclick="openGrantModal()">+ Grant Credits</button>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+  <div class="card-header">
+    <span class="card-title">All Users</span>
+    <div class="form-row" style="margin:0;">
+      <input type="search" id="search-input" placeholder="Search username or email..." style="width:240px;" oninput="debounce(loadUsers, 400)()">
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>User</th><th>Role</th><th>Status</th><th>Tier</th>
+        <th>Trial</th><th>Sessions Left</th><th>Tokens Used</th><th>Spend</th>
+        <th>Last Active</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="users-tbody"><tr><td colspan="10" class="text-muted">Loading...</td></tr></tbody>
+    </table>
+  </div>
+  <div class="card-body" style="display:flex; align-items:center; justify-content:space-between;">
+    <div class="text-muted text-sm" id="pagination-info"></div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-ghost btn-sm" id="btn-prev" onclick="changePage(-1)" disabled>← Prev</button>
+      <button class="btn btn-ghost btn-sm" id="btn-next" onclick="changePage(1)">Next →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Grant Credits Modal -->
+<div class="modal-backdrop" id="grant-modal">
+  <div class="modal">
+    <div class="modal-title">Grant Credits to User</div>
+    <div class="form-group">
+      <label>User ID</label>
+      <input type="number" id="grant-user-id" placeholder="Enter user ID">
+    </div>
+    <div class="form-group">
+      <label>Type</label>
+      <select id="grant-type">
+        <option value="sessions">Sessions</option>
+        <option value="tokens">Tokens</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Quantity</label>
+      <input type="number" id="grant-qty" value="10" min="1">
+    </div>
+    <div class="form-group">
+      <label>Notes (optional)</label>
+      <input type="text" id="grant-notes" placeholder="Reason for grant...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeGrantModal()">Cancel</button>
+      <button class="btn btn-success" onclick="submitGrant()">Grant Credits</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentPage = 1;
+let totalPages = 1;
+
+const debounce = (fn, ms) => { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); }; };
+
+async function loadUsers() {
+  const search = document.getElementById('search-input').value;
+  try {
+    const data = await api('GET', `/api/admin/users?page=${currentPage}&limit=20&search=${encodeURIComponent(search)}`);
+    totalPages = data.pages;
+    document.getElementById('pagination-info').textContent = `${data.total} users · Page ${currentPage} of ${totalPages}`;
+    document.getElementById('btn-prev').disabled = currentPage <= 1;
+    document.getElementById('btn-next').disabled = currentPage >= totalPages;
+
+    const tbody = document.getElementById('users-tbody');
+    if (!data.users.length) { tbody.innerHTML = '<tr><td colspan="10" class="text-muted">No users found.</td></tr>'; return; }
+    tbody.innerHTML = data.users.map(u => `
+      <tr>
+        <td>
+          <div style="font-weight:600;">${u.username}</div>
+          <div class="text-muted text-sm">${u.email}</div>
+        </td>
+        <td><span class="badge badge-gray">${u.role}</span></td>
+        <td>
+          <span class="badge ${u.is_active ? 'badge-green' : 'badge-red'}">${u.is_active ? 'Active' : 'Inactive'}</span>
+          ${u.is_super_admin ? '<span class="badge badge-blue" style="margin-left:4px;">Admin</span>' : ''}
+        </td>
+        <td><span class="badge ${u.quota.is_trial ? 'badge-amber' : 'badge-green'}">${u.quota.is_trial ? 'Trial' : 'Paid'}</span></td>
+        <td>${u.quota.trial_sessions_used}/${u.quota.trial_sessions_max}</td>
+        <td>${u.quota.remaining_sessions}</td>
+        <td>${fmtNum(u.quota.used_tokens)}</td>
+        <td>$${u.total_spend_usd.toFixed(2)}</td>
+        <td class="text-muted text-sm">${u.last_activity ? fmtDate(u.last_activity) : 'Never'}</td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="toggleStatus(${u.id}, ${u.is_active}, '${u.username}')"
+            title="${u.is_active ? 'Deactivate' : 'Activate'}">${u.is_active ? '🔴' : '🟢'}</button>
+          <button class="btn btn-ghost btn-sm" onclick="openGrantForUser(${u.id})" title="Grant credits">🎁</button>
+        </td>
+      </tr>`).join('');
+  } catch(e) { showToast('Failed to load users: ' + e.message, 'error'); }
+}
+
+async function toggleStatus(userId, isActive, name) {
+  if (!confirm(`${isActive ? 'Deactivate' : 'Activate'} user "${name}"?`)) return;
+  try {
+    await api('PATCH', `/api/admin/users/${userId}`, { is_active: !isActive });
+    showToast(`User ${isActive ? 'deactivated' : 'activated'} successfully`, 'success');
+    loadUsers();
+  } catch(e) { showToast('Failed: ' + e.message, 'error'); }
+}
+
+function openGrantModal() { document.getElementById('grant-modal').classList.add('open'); }
+function openGrantForUser(id) {
+  document.getElementById('grant-user-id').value = id;
+  openGrantModal();
+}
+function closeGrantModal() { document.getElementById('grant-modal').classList.remove('open'); }
+
+async function submitGrant() {
+  const user_id = parseInt(document.getElementById('grant-user-id').value);
+  const purchase_type = document.getElementById('grant-type').value;
+  const quantity = parseInt(document.getElementById('grant-qty').value);
+  const notes = document.getElementById('grant-notes').value;
+  if (!user_id || !quantity) { showToast('Fill in all required fields', 'error'); return; }
+  try {
+    await api('POST', '/api/admin/purchases/grant', { user_id, purchase_type, quantity, notes });
+    showToast(`Granted ${quantity} ${purchase_type} to user #${user_id}`, 'success');
+    closeGrantModal();
+    loadUsers();
+  } catch(e) { showToast('Grant failed: ' + e.message, 'error'); }
+}
+
+function changePage(dir) { currentPage = Math.max(1, Math.min(totalPages, currentPage + dir)); loadUsers(); }
+function fmtNum(n) { return n >= 1000 ? (n/1000).toFixed(1) + 'k' : n; }
+function fmtDate(iso) { const d = new Date(iso); return d.toLocaleDateString(); }
+
+loadUsers();
+</script>
+{% endblock %}

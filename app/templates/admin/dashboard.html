@@ -1,0 +1,109 @@
+{% extends "admin/base.html" %}
+{% set active_page = "dashboard" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block breadcrumb %}Admin / Overview{% endblock %}
+
+{% block content %}
+<!-- KPI Cards -->
+<div class="kpi-grid" id="kpi-grid">
+  <div class="kpi-card"><div class="kpi-label">Total Users</div><div class="kpi-value" id="kpi-total-users">—</div></div>
+  <div class="kpi-card blue"><div class="kpi-label">Active Users</div><div class="kpi-value" id="kpi-active-users">—</div></div>
+  <div class="kpi-card"><div class="kpi-label">Trial Users</div><div class="kpi-value" id="kpi-trial-users">—</div></div>
+  <div class="kpi-card green"><div class="kpi-label">Sessions Today</div><div class="kpi-value" id="kpi-sessions-today">—</div></div>
+  <div class="kpi-card amber"><div class="kpi-label">Tokens Today</div><div class="kpi-value" id="kpi-tokens-today">—</div><div class="kpi-sub" id="kpi-tokens-sub"></div></div>
+  <div class="kpi-card green"><div class="kpi-label">Revenue (Month)</div><div class="kpi-value" id="kpi-revenue">—</div></div>
+  <div class="kpi-card red"><div class="kpi-label">Errors Today</div><div class="kpi-value" id="kpi-errors">—</div></div>
+</div>
+
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+
+  <!-- 7-day chart -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Sessions — Last 7 Days</span></div>
+    <div class="card-body">
+      <div id="chart-container" style="height:140px; display:flex; align-items:flex-end; gap:6px;">
+        <div style="color:var(--gray-400); font-size:12px;">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick actions -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Quick Actions</span></div>
+    <div class="card-body" style="display:flex; flex-direction:column; gap:10px;">
+      <a href="/admin/users" class="btn btn-ghost">👥 Manage Users</a>
+      <a href="/admin/config" class="btn btn-ghost">⚙️ Platform Config</a>
+      <a href="/admin/revenue" class="btn btn-ghost">💰 View Revenue</a>
+      <a href="/admin/logs?errors_only=true" class="btn btn-ghost" style="color:var(--danger);">🚨 View Errors</a>
+    </div>
+  </div>
+
+</div>
+
+<!-- Recent events -->
+<div class="card mt-4">
+  <div class="card-header">
+    <span class="card-title">Recent AI Usage Events</span>
+    <a href="/admin/usage" class="btn btn-ghost btn-sm">View All</a>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>User</th><th>Type</th><th>Model</th><th>Tokens</th><th>Time</th></tr></thead>
+      <tbody id="recent-events"><tr><td colspan="5" class="text-muted">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadDashboard() {
+  try {
+    const data = await api('GET', '/api/admin/dashboard');
+    document.getElementById('kpi-total-users').textContent = data.total_users;
+    document.getElementById('kpi-active-users').textContent = data.active_users;
+    document.getElementById('kpi-trial-users').textContent = data.trial_users;
+    document.getElementById('kpi-sessions-today').textContent = data.sessions_today;
+    document.getElementById('kpi-tokens-today').textContent = fmtNum(data.tokens_today);
+    document.getElementById('kpi-revenue').textContent = '$' + data.revenue_this_month_usd.toFixed(2);
+    document.getElementById('kpi-errors').textContent = data.error_count_today;
+
+    // Bar chart
+    const container = document.getElementById('chart-container');
+    const max = Math.max(...data.daily_sessions.map(d => d.sessions), 1);
+    container.innerHTML = data.daily_sessions.map(d => `
+      <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;">
+        <div style="font-size:10px; color:var(--gray-500);">${d.sessions}</div>
+        <div style="width:100%; background:var(--primary); border-radius:4px 4px 0 0;
+             height:${Math.max(4, (d.sessions / max) * 110)}px; opacity:.85;"></div>
+        <div style="font-size:10px; color:var(--gray-400);">${d.date.slice(5)}</div>
+      </div>`).join('');
+  } catch(e) { showToast('Failed to load dashboard: ' + e.message, 'error'); }
+
+  try {
+    const events = await api('GET', '/api/admin/usage/events?limit=10');
+    const tbody = document.getElementById('recent-events');
+    if (!events.length) { tbody.innerHTML = '<tr><td colspan="5" class="text-muted">No events yet.</td></tr>'; return; }
+    tbody.innerHTML = events.map(e => `
+      <tr>
+        <td>${e.username}</td>
+        <td><span class="badge ${e.event_type === 'trial' ? 'badge-blue' : e.event_type === 'session' ? 'badge-green' : 'badge-amber'}">${e.event_type}</span></td>
+        <td class="font-mono text-sm">${e.model_id || '—'}</td>
+        <td>${e.tokens_delta ? fmtNum(e.tokens_delta) : '—'}</td>
+        <td class="text-muted">${fmtDate(e.created_at)}</td>
+      </tr>`).join('');
+  } catch(e) {}
+}
+
+function fmtNum(n) { return n >= 1000 ? (n/1000).toFixed(1) + 'k' : n; }
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+
+loadDashboard();
+</script>
+{% endblock %}

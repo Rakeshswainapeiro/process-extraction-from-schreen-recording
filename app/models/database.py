@@ -20,10 +20,13 @@ class User(Base):
     full_name = Column(String(120), nullable=False)
     role = Column(String(50), nullable=False)  # admin, procurement, hr, project_manager
     is_active = Column(Boolean, default=True)
+    is_super_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     recordings = relationship("Recording", back_populates="user")
     feedback = relationship("Feedback", back_populates="user")
+    quota = relationship("UsageQuota", back_populates="user", uselist=False)
+    purchases = relationship("Purchase", back_populates="user", foreign_keys="Purchase.user_id")
 
 
 class Recording(Base):
@@ -90,7 +93,8 @@ class AIModelConfig(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     provider = Column(String(50), nullable=False, default="anthropic")  # anthropic, openai, custom
     name = Column(String(100), nullable=False, default="Default")
-    api_key = Column(String(500), nullable=False)
+    api_key = Column(Text, nullable=False)
+    is_encrypted = Column(Boolean, default=False)
     base_url = Column(String(500), nullable=True)  # custom endpoint URL
     model_id = Column(String(200), nullable=False, default="claude-sonnet-4-6")
     max_tokens = Column(Integer, default=8000)
@@ -113,6 +117,124 @@ class Feedback(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     user = relationship("User", back_populates="feedback")
+
+
+# ── Platform Config (admin key-value store) ───────────────────────────────────
+
+class PlatformConfig(Base):
+    """Admin-controlled global settings stored as key-value pairs."""
+    __tablename__ = "platform_config"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String(100), unique=True, nullable=False)
+    value = Column(Text, nullable=False)
+    description = Column(Text, nullable=True)
+    updated_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+
+# ── Usage Quota (one row per user) ────────────────────────────────────────────
+
+class UsageQuota(Base):
+    """Tracks trial usage and purchased balance per user."""
+    __tablename__ = "usage_quotas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+
+    # Trial
+    is_trial = Column(Boolean, default=True)
+    trial_sessions_used = Column(Integer, default=0)
+    trial_sessions_max = Column(Integer, default=3)
+
+    # Purchased credits
+    purchased_sessions = Column(Integer, default=0)
+    purchased_tokens = Column(Integer, default=0)
+
+    # Consumed from purchased balance
+    used_sessions = Column(Integer, default=0)
+    used_tokens = Column(Integer, default=0)
+
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    user = relationship("User", back_populates="quota")
+
+    @property
+    def remaining_sessions(self) -> int:
+        return max(0, self.purchased_sessions - self.used_sessions)
+
+    @property
+    def remaining_tokens(self) -> int:
+        return max(0, self.purchased_tokens - self.used_tokens)
+
+    @property
+    def can_use_trial(self) -> bool:
+        return bool(self.is_trial and self.trial_sessions_used < self.trial_sessions_max)
+
+    @property
+    def can_use_ai(self) -> bool:
+        return self.can_use_trial or self.remaining_sessions > 0 or self.remaining_tokens > 0
+
+
+# ── Usage Events (immutable ledger) ──────────────────────────────────────────
+
+class UsageEvent(Base):
+    """One record per AI call — immutable audit ledger."""
+    __tablename__ = "usage_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    recording_id = Column(Integer, ForeignKey("recordings.id"), nullable=True)
+    event_type = Column(String(20), nullable=False)  # trial | session | token
+    sessions_delta = Column(Integer, default=0)
+    tokens_delta = Column(Integer, default=0)
+    model_config_id = Column(Integer, ForeignKey("ai_model_configs.id"), nullable=True)
+    model_provider = Column(String(50), nullable=True)
+    model_id = Column(String(200), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+# ── Purchases ────────────────────────────────────────────────────────────────
+
+class Purchase(Base):
+    """Records of purchased or admin-granted quota."""
+    __tablename__ = "purchases"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    purchase_type = Column(String(20), nullable=False)  # sessions | tokens
+    quantity = Column(Integer, nullable=False)
+    amount_usd_cents = Column(Integer, nullable=False, default=0)
+    payment_reference = Column(String(200), nullable=True)
+    status = Column(String(20), default="completed")   # pending | completed | refunded
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)  # admin grants
+
+    user = relationship("User", back_populates="purchases", foreign_keys=[user_id])
+
+
+# ── API Audit Logs ────────────────────────────────────────────────────────────
+
+class ApiAuditLog(Base):
+    """Per-request AI call log for monitoring and billing audit."""
+    __tablename__ = "api_audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    recording_id = Column(Integer, ForeignKey("recordings.id"), nullable=True)
+    endpoint = Column(String(200), nullable=False)
+    method = Column(String(10), nullable=False, default="POST")
+    status_code = Column(Integer, nullable=True)
+    model_provider = Column(String(50), nullable=True)
+    model_id = Column(String(200), nullable=True)
+    model_config_id = Column(Integer, ForeignKey("ai_model_configs.id"), nullable=True)
+    tokens_used = Column(Integer, default=0)
+    latency_ms = Column(Integer, default=0)
+    error_message = Column(Text, nullable=True)
+    ip_address = Column(String(60), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
 async def init_db():

@@ -1,70 +1,29 @@
+from __future__ import annotations
 import json
+import time
 import datetime
 import os
-from typing import Optional
+from typing import Optional, Tuple
 
 import anthropic
 import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.database import Activity, AIModelConfig, ProcessReport, Recording
-from config import settings
+from app.models.database import Activity, ApiAuditLog, ProcessReport, Recording
+from app.services.model_resolver import resolve_model, ResolvedModel
 
 
 class ProcessAnalyzer:
     """Uses AI APIs to analyze captured activities and generate process insights.
-    Supports Anthropic, OpenAI, and custom OpenAI-compatible endpoints."""
+    Supports Anthropic, OpenAI, and custom OpenAI-compatible endpoints.
 
-    def __init__(self):
-        self.client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY) if settings.ANTHROPIC_API_KEY else None
-
-    async def _get_model_config(self, db: AsyncSession, user_id: int) -> Optional[AIModelConfig]:
-        """Load the user's active/default AI model config from the database."""
-        # Try default first
-        result = await db.execute(
-            select(AIModelConfig).where(
-                AIModelConfig.user_id == user_id,
-                AIModelConfig.is_default == True,
-                AIModelConfig.is_active == True,
-            )
-        )
-        config = result.scalar_one_or_none()
-        if config:
-            return config
-        # Fall back to any active
-        result = await db.execute(
-            select(AIModelConfig).where(
-                AIModelConfig.user_id == user_id,
-                AIModelConfig.is_active == True,
-            ).order_by(AIModelConfig.created_at.desc())
-        )
-        return result.scalar_one_or_none()
-
-    def _build_client(self, config: Optional[AIModelConfig]):
-        """Build the appropriate AI client from a model config."""
-        if config:
-            if config.provider == "anthropic":
-                kwargs = {"api_key": config.api_key}
-                if config.base_url:
-                    kwargs["base_url"] = config.base_url
-                return {"type": "anthropic", "client": anthropic.Anthropic(**kwargs), "model": config.model_id, "max_tokens": config.max_tokens}
-            elif config.provider in ("openai", "custom"):
-                return {"type": "openai_compat", "api_key": config.api_key, "base_url": config.base_url or "https://api.openai.com/v1", "model": config.model_id, "max_tokens": config.max_tokens}
-        # Fallback: custom OpenAI-compatible endpoint from env
-        if settings.CUSTOM_AI_BASE_URL:
-            api_key = settings.CUSTOM_AI_API_KEY or settings.ANTHROPIC_API_KEY
-            return {
-                "type": "openai_compat",
-                "api_key": api_key,
-                "base_url": settings.CUSTOM_AI_BASE_URL,
-                "model": settings.CUSTOM_AI_MODEL,
-                "max_tokens": 8000,
-            }
-        # Fallback: Anthropic direct
-        if settings.ANTHROPIC_API_KEY:
-            return {"type": "anthropic", "client": anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY), "model": "claude-sonnet-4-6", "max_tokens": 8000}
-        return None
+    Model resolution order (no hardcoded values):
+      1. User's selected/default model from DB
+      2. Platform admin default model
+      3. Env vars (backward compat)
+      4. Demo mode
+    """
 
     def _format_activities(self, activities: list[Activity]) -> str:
         lines = []
@@ -87,7 +46,13 @@ class ProcessAnalyzer:
             lines.append(line)
         return "\n".join(lines)
 
-    async def analyze_recording(self, db: AsyncSession, recording_id: int, user_id: int = None) -> Optional[ProcessReport]:
+    async def analyze_recording(
+        self,
+        db: AsyncSession,
+        recording_id: int,
+        user_id: int = None,
+        preferred_config_id: Optional[int] = None,
+    ) -> Optional[ProcessReport]:
         result = await db.execute(
             select(Activity)
             .where(Activity.recording_id == recording_id)
@@ -101,23 +66,58 @@ class ProcessAnalyzer:
         recording = recording_result.scalar_one_or_none()
 
         if not activities:
-            # No activities tracked — generate a demo report so the user still gets output
             report = self._generate_demo_report(activities, recording)
+            tokens_used = 0
+            resolved = None
         else:
             activities_text = self._format_activities(activities)
 
-            # Resolve which AI client to use: user config > env var > demo
-            ai_client = None
-            if user_id:
-                model_config = await self._get_model_config(db, user_id)
-                ai_client = self._build_client(model_config)
-            if not ai_client:
-                ai_client = self._build_client(None)
+            # Resolve model — no hardcoded values anywhere
+            resolved = await resolve_model(db, user_id, preferred_config_id) if user_id else None
 
-            if ai_client:
-                report = await self._analyze_with_ai(activities_text, recording, ai_client)
+            if resolved and resolved.provider != "demo":
+                t0 = time.monotonic()
+                status_code = 200
+                error_msg = None
+                tokens_used = 0
+
+                try:
+                    report, tokens_used = await self._call_provider(resolved, activities_text, recording)
+                except Exception as exc:
+                    status_code = 500
+                    error_msg = str(exc)
+                    raise
+                finally:
+                    latency_ms = int((time.monotonic() - t0) * 1000)
+                    db.add(ApiAuditLog(
+                        user_id=user_id,
+                        recording_id=recording_id,
+                        endpoint=f"/api/recordings/{recording_id}/stop",
+                        method="POST",
+                        status_code=status_code,
+                        model_provider=resolved.provider,
+                        model_id=resolved.model_id,
+                        model_config_id=resolved.config_id,
+                        tokens_used=tokens_used,
+                        latency_ms=latency_ms,
+                        error_message=error_msg,
+                    ))
+
+                # Deduct usage AFTER successful AI call (not on errors)
+                if status_code == 200 and user_id:
+                    from app.services.usage_service import check_and_deduct
+                    await check_and_deduct(
+                        db=db,
+                        user_id=user_id,
+                        recording_id=recording_id,
+                        model_config_id=resolved.config_id,
+                        model_provider=resolved.provider,
+                        model_id=resolved.model_id,
+                        tokens_used=tokens_used,
+                    )
             else:
                 report = self._generate_demo_report(activities, recording)
+                tokens_used = 0
 
         process_report = ProcessReport(
             recording_id=recording_id,
@@ -289,37 +289,42 @@ CRITICAL RULES:
   * Arrow labels (|label|) required on all decision branches.
   * No syntax errors — valid Mermaid only."""
 
-    async def _analyze_with_ai(self, activities_text: str, recording, ai_client: dict) -> dict:
-        """Route to the correct AI backend based on the client config."""
+    async def _call_provider(
+        self, resolved: ResolvedModel, activities_text: str, recording
+    ) -> Tuple[dict, int]:
+        """Route to the correct AI backend. Returns (parsed_report, tokens_used)."""
         prompt = self._build_prompt(activities_text, recording)
 
-        if ai_client["type"] == "anthropic":
-            return await self._call_anthropic(prompt, ai_client)
-        elif ai_client["type"] == "openai_compat":
-            return await self._call_openai_compat(prompt, ai_client)
+        if resolved.provider == "anthropic":
+            return await self._call_anthropic(resolved, prompt)
         else:
-            return self._generate_demo_report([], None)
+            return await self._call_openai_compat(resolved, prompt)
 
-    async def _call_anthropic(self, prompt: str, ai_client: dict) -> dict:
-        """Call Anthropic Claude API."""
-        message = ai_client["client"].messages.create(
-            model=ai_client["model"],
-            max_tokens=ai_client["max_tokens"],
+    async def _call_anthropic(self, resolved: ResolvedModel, prompt: str) -> Tuple[dict, int]:
+        """Call Anthropic Claude API. Returns (parsed_report, tokens_used)."""
+        client = anthropic.Anthropic(
+            api_key=resolved.api_key,
+            **({"base_url": resolved.base_url} if resolved.base_url else {}),
+        )
+        message = client.messages.create(
+            model=resolved.model_id,
+            max_tokens=resolved.max_tokens,
             messages=[{"role": "user", "content": prompt}],
         )
-        return self._parse_json_response(message.content[0].text)
+        tokens = message.usage.input_tokens + message.usage.output_tokens
+        return self._parse_json_response(message.content[0].text), tokens
 
-    async def _call_openai_compat(self, prompt: str, ai_client: dict) -> dict:
+    async def _call_openai_compat(self, resolved: ResolvedModel, prompt: str) -> Tuple[dict, int]:
         """Call any OpenAI-compatible endpoint (OpenAI, vLLM, Ollama, LiteLLM, etc.)."""
-        endpoint = ai_client["base_url"].rstrip("/")
+        endpoint = (resolved.base_url or "https://api.openai.com/v1").rstrip("/")
         headers = {
-            "Authorization": f"Bearer {ai_client['api_key']}",
+            "Authorization": f"Bearer {resolved.api_key}",
             "Content-Type": "application/json",
         }
         payload = {
-            "model": ai_client["model"],
+            "model": resolved.model_id,
             "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": ai_client["max_tokens"],
+            "max_tokens": resolved.max_tokens,
             "temperature": 0.2,
         }
         async with httpx.AsyncClient(timeout=120) as http_client:
@@ -327,7 +332,8 @@ CRITICAL RULES:
             resp.raise_for_status()
             result = resp.json()
             text = result["choices"][0]["message"]["content"]
-            return self._parse_json_response(text)
+            tokens = result.get("usage", {}).get("total_tokens", 0)
+            return self._parse_json_response(text), tokens
 
     def _parse_json_response(self, response_text: str) -> dict:
         """Extract JSON from an AI response, handling code fences."""
@@ -506,17 +512,18 @@ CRITICAL RULES:
     I --> J[End]"""
         }
 
-    async def get_consulting_advice(self, report: ProcessReport, db: AsyncSession = None, user_id: int = None) -> str:
+    async def get_consulting_advice(
+        self,
+        report: ProcessReport,
+        db: AsyncSession = None,
+        user_id: int = None,
+    ) -> str:
         """Generate consulting advice based on the process report."""
-        # Resolve AI client
-        ai_client = None
+        resolved = None
         if db and user_id:
-            model_config = await self._get_model_config(db, user_id)
-            ai_client = self._build_client(model_config)
-        if not ai_client:
-            ai_client = self._build_client(None)
+            resolved = await resolve_model(db, user_id)
 
-        if not ai_client:
+        if not resolved or resolved.provider == "demo":
             return self._generate_demo_consulting(report)
 
         prompt = f"""You are a senior Digital Transformation Consultant. Based on the following process analysis,
@@ -541,26 +548,36 @@ Provide actionable consulting advice covering:
 
 Format as clear, professional Markdown."""
 
-        if ai_client["type"] == "anthropic":
-            message = ai_client["client"].messages.create(
-                model=ai_client["model"],
-                max_tokens=min(ai_client["max_tokens"], 4000),
+        if resolved.provider == "anthropic":
+            client = anthropic.Anthropic(
+                api_key=resolved.api_key,
+                **({"base_url": resolved.base_url} if resolved.base_url else {}),
+            )
+            message = client.messages.create(
+                model=resolved.model_id,
+                max_tokens=min(resolved.max_tokens, 4000),
                 messages=[{"role": "user", "content": prompt}],
             )
             return message.content[0].text
-        elif ai_client["type"] == "openai_compat":
-            endpoint = ai_client["base_url"].rstrip("/")
-            headers = {"Authorization": f"Bearer {ai_client['api_key']}", "Content-Type": "application/json"}
+        else:
+            endpoint = (resolved.base_url or "https://api.openai.com/v1").rstrip("/")
+            headers = {
+                "Authorization": f"Bearer {resolved.api_key}",
+                "Content-Type": "application/json",
+            }
             async with httpx.AsyncClient(timeout=120) as http_client:
-                resp = await http_client.post(f"{endpoint}/chat/completions", headers=headers, json={
-                    "model": ai_client["model"],
-                    "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": min(ai_client["max_tokens"], 4000),
-                    "temperature": 0.2,
-                })
+                resp = await http_client.post(
+                    f"{endpoint}/chat/completions",
+                    headers=headers,
+                    json={
+                        "model": resolved.model_id,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "max_tokens": min(resolved.max_tokens, 4000),
+                        "temperature": 0.2,
+                    },
+                )
                 resp.raise_for_status()
                 return resp.json()["choices"][0]["message"]["content"]
-        return self._generate_demo_consulting(report)
 
     def _generate_demo_consulting(self, report: ProcessReport) -> str:
         return """# Digital Transformation Consulting Report

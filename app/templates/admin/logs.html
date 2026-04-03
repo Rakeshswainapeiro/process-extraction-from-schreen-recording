@@ -1,0 +1,72 @@
+{% extends "admin/base.html" %}
+{% set active_page = "logs" %}
+{% block title %}Audit Logs{% endblock %}
+{% block page_title %}Audit Logs{% endblock %}
+{% block breadcrumb %}Admin / Logs{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">API Audit Log</span>
+    <div class="form-row" style="margin:0; gap:8px; flex-wrap:wrap;">
+      <input type="number" id="filter-uid" placeholder="User ID" style="width:90px;" oninput="loadLogs()">
+      <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+        <input type="checkbox" id="errors-only" onchange="loadLogs()"> Errors only
+      </label>
+      <button class="btn btn-ghost btn-sm" onclick="loadLogs()">Refresh</button>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Time</th><th>User</th><th>Endpoint</th><th>Status</th><th>Provider</th><th>Model</th><th>Tokens</th><th>Latency</th><th>Error</th></tr></thead>
+      <tbody id="logs-tbody"><tr><td colspan="9" class="text-muted">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadLogs() {
+  const uid = document.getElementById('filter-uid').value;
+  const errOnly = document.getElementById('errors-only').checked;
+  let url = '/api/admin/logs?limit=100';
+  if (uid) url += `&user_id=${uid}`;
+  if (errOnly) url += '&errors_only=true';
+
+  try {
+    const logs = await api('GET', url);
+    const tbody = document.getElementById('logs-tbody');
+    if (!logs.length) { tbody.innerHTML = '<tr><td colspan="9" class="text-muted">No logs found.</td></tr>'; return; }
+    tbody.innerHTML = logs.map(l => {
+      const ok = l.status_code && l.status_code < 400;
+      return `
+        <tr>
+          <td class="text-muted text-sm">${fmtDate(l.created_at)}</td>
+          <td>${l.username || '—'}</td>
+          <td class="font-mono text-sm">${l.endpoint}</td>
+          <td><span class="badge ${ok ? 'badge-green' : 'badge-red'}">${l.status_code || '?'}</span></td>
+          <td>${l.model_provider || '—'}</td>
+          <td class="font-mono text-sm">${l.model_id ? l.model_id.slice(0,30) : '—'}</td>
+          <td>${l.tokens_used ? fmtNum(l.tokens_used) : '—'}</td>
+          <td class="text-muted">${l.latency_ms ? l.latency_ms + 'ms' : '—'}</td>
+          <td class="text-sm" style="color:var(--danger); max-width:200px; overflow:hidden; text-overflow:ellipsis;">${l.error_message || ''}</td>
+        </tr>`;
+    }).join('');
+  } catch(e) { showToast('Failed: ' + e.message, 'error'); }
+}
+
+function fmtNum(n) { return n >= 1000 ? (n/1000).toFixed(1)+'k' : n; }
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+
+// Check URL params for pre-filters
+const params = new URLSearchParams(location.search);
+if (params.get('errors_only')) document.getElementById('errors-only').checked = true;
+
+loadLogs();
+</script>
+{% endblock %}

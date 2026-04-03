@@ -1,0 +1,95 @@
+{% extends "admin/base.html" %}
+{% set active_page = "usage" %}
+{% block title %}Usage{% endblock %}
+{% block page_title %}Usage & Events{% endblock %}
+{% block breadcrumb %}Admin / Usage{% endblock %}
+
+{% block content %}
+<div class="kpi-grid mb-6" id="usage-kpis">
+  <div class="kpi-card blue"><div class="kpi-label">Total Sessions</div><div class="kpi-value" id="k-sessions">—</div></div>
+  <div class="kpi-card amber"><div class="kpi-label">Total Tokens</div><div class="kpi-value" id="k-tokens">—</div></div>
+  <div class="kpi-card"><div class="kpi-label">Total Users</div><div class="kpi-value" id="k-users">—</div></div>
+</div>
+
+<!-- Per-user summary -->
+<div class="card mb-6">
+  <div class="card-header"><span class="card-title">Per-User Quota Summary</span></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>User</th><th>Tier</th><th>Trial</th><th>Sessions Used</th><th>Sessions Left</th><th>Tokens Used</th><th>Spend</th></tr></thead>
+      <tbody id="summary-tbody"><tr><td colspan="7" class="text-muted">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Event log -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Usage Event Log</span>
+    <div class="form-row" style="margin:0; gap:8px;">
+      <input type="number" id="filter-user" placeholder="User ID" style="width:100px;" oninput="loadEvents()">
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Time</th><th>User</th><th>Type</th><th>Sessions</th><th>Tokens</th><th>Model</th><th>Recording</th></tr></thead>
+      <tbody id="events-tbody"><tr><td colspan="7" class="text-muted">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadSummary() {
+  try {
+    const data = await api('GET', '/api/admin/dashboard');
+    document.getElementById('k-sessions').textContent = data.sessions_today + ' today';
+    document.getElementById('k-tokens').textContent = fmtNum(data.tokens_today) + ' today';
+    document.getElementById('k-users').textContent = data.total_users;
+  } catch(e) {}
+
+  try {
+    const rows = await api('GET', '/api/admin/usage/summary');
+    const tbody = document.getElementById('summary-tbody');
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-muted">No data.</td></tr>'; return; }
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td><div style="font-weight:600;">${r.username}</div><div class="text-muted text-sm">${r.email}</div></td>
+        <td><span class="badge ${r.is_trial ? 'badge-amber' : 'badge-green'}">${r.is_trial ? 'Trial' : 'Paid'}</span></td>
+        <td>${r.trial_sessions_used}/${r.trial_sessions_max ?? 3}</td>
+        <td>${r.used_sessions}</td>
+        <td>${r.remaining_sessions}</td>
+        <td>${fmtNum(r.used_tokens)}</td>
+        <td>$${(r.total_spend_usd ?? 0).toFixed(2)}</td>
+      </tr>`).join('');
+  } catch(e) {}
+}
+
+async function loadEvents() {
+  const userId = document.getElementById('filter-user').value;
+  const url = '/api/admin/usage/events?limit=50' + (userId ? `&user_id=${userId}` : '');
+  try {
+    const events = await api('GET', url);
+    const tbody = document.getElementById('events-tbody');
+    if (!events.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-muted">No events.</td></tr>'; return; }
+    tbody.innerHTML = events.map(e => `
+      <tr>
+        <td class="text-muted text-sm">${fmtDate(e.created_at)}</td>
+        <td>${e.username}</td>
+        <td><span class="badge ${e.event_type === 'trial' ? 'badge-blue' : e.event_type === 'session' ? 'badge-green' : 'badge-amber'}">${e.event_type}</span></td>
+        <td>${e.sessions_delta || '—'}</td>
+        <td>${e.tokens_delta ? fmtNum(e.tokens_delta) : '—'}</td>
+        <td class="font-mono text-sm">${e.model_id || '—'}</td>
+        <td>${e.recording_id ? `<a href="/report/${e.recording_id}" style="color:var(--primary);">#${e.recording_id}</a>` : '—'}</td>
+      </tr>`).join('');
+  } catch(e) { showToast('Failed: ' + e.message, 'error'); }
+}
+
+function fmtNum(n) { if (!n) return '0'; return n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'k' : n; }
+function fmtDate(iso) { if (!iso) return '—'; const d = new Date(iso); return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
+
+loadSummary();
+loadEvents();
+</script>
+{% endblock %}

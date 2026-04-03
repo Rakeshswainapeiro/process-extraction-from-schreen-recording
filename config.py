@@ -5,6 +5,10 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     APP_NAME: str = "Process Extractor Pro"
     SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
+    # ENCRYPTION_KEY: 32-byte key encoded as base64.
+    # Generate with: python -c "import os,base64; print(base64.b64encode(os.urandom(32)).decode())"
+    # Leave empty in dev — a stable dev key is auto-derived (DO NOT use in production).
+    ENCRYPTION_KEY: str = os.getenv("ENCRYPTION_KEY", "")
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
     CUSTOM_AI_BASE_URL: str = os.getenv("CUSTOM_AI_BASE_URL", "")
     CUSTOM_AI_API_KEY: str = os.getenv("CUSTOM_AI_API_KEY", "")

@@ -70,7 +70,10 @@ async def get_user_by_username(db: AsyncSession, username: str) -> Optional[User
 
 
 async def seed_test_users(db: AsyncSession):
-    """Create the 3 test stakeholder accounts if they don't exist."""
+    """Create test accounts if they don't exist, and ensure admin is super admin."""
+    from sqlalchemy import update
+    from app.models.database import User as UserModel
+
     test_users = [
         {
             "username": "procurement_specialist",
@@ -106,3 +109,11 @@ async def seed_test_users(db: AsyncSession):
         if not existing:
             await create_user(db, u["username"], u["email"], u["password"],
                               u["full_name"], u["role"])
+
+    # Always ensure admin has super admin privileges
+    await db.execute(
+        update(UserModel)
+        .where(UserModel.username == "admin")
+        .values(is_super_admin=True)
+    )
+    await db.commit()

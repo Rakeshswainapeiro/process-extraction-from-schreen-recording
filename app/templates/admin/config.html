@@ -1,0 +1,135 @@
+{% extends "admin/base.html" %}
+{% set active_page = "config" %}
+{% block title %}Platform Config{% endblock %}
+{% block page_title %}Platform Configuration{% endblock %}
+{% block breadcrumb %}Admin / Platform Config{% endblock %}
+
+{% block content %}
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start;">
+
+  <!-- Default AI Model -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Default AI Model</span></div>
+    <div class="card-body">
+      <p class="text-muted text-sm mb-4">Used when a user has not configured their own model.</p>
+
+      <div class="form-group">
+        <label>Provider</label>
+        <select id="cfg-provider">
+          <option value="anthropic">Anthropic</option>
+          <option value="openai">OpenAI</option>
+          <option value="custom">Custom (OpenAI-compatible)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Model ID</label>
+        <input type="text" id="cfg-model-id" placeholder="e.g. claude-sonnet-4-6 or deepseek-ai/DeepSeek-V3.1">
+      </div>
+      <div class="form-group">
+        <label>API Key</label>
+        <input type="password" id="cfg-api-key" placeholder="Leave blank to keep existing key">
+        <div class="text-muted text-sm" style="margin-top:4px;">Key is encrypted at rest. Leave blank to keep current key.</div>
+      </div>
+      <div class="form-group">
+        <label>Base URL <span class="text-muted">(optional — leave blank for provider default)</span></label>
+        <input type="text" id="cfg-base-url" placeholder="https://your-endpoint.example.com/v1">
+      </div>
+      <div class="form-group">
+        <label>Max Tokens</label>
+        <input type="number" id="cfg-max-tokens" value="8000" min="256" max="128000">
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button class="btn btn-primary" onclick="saveModelConfig()">Save Model Config</button>
+        <button class="btn btn-ghost" onclick="testModel()" id="btn-test">Test Connection</button>
+      </div>
+      <div id="test-result" style="margin-top:12px; font-size:13px;"></div>
+    </div>
+  </div>
+
+  <!-- Trial & Quota settings -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Trial & Quota Defaults</span></div>
+    <div class="card-body">
+      <p class="text-muted text-sm mb-4">Applied to new users at signup.</p>
+      <div class="form-group">
+        <label>Free Trial Sessions</label>
+        <input type="number" id="cfg-trial-sessions" value="3" min="0" max="100">
+        <div class="text-muted text-sm" style="margin-top:4px;">How many free AI analyses a new user gets.</div>
+      </div>
+      <div class="form-group">
+        <label>Trial Token Budget <span class="text-muted">(informational)</span></label>
+        <input type="number" id="cfg-trial-tokens" value="50000" min="0">
+      </div>
+      <button class="btn btn-primary" style="margin-top:8px;" onclick="saveQuotaConfig()">Save Quota Config</button>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadConfig() {
+  try {
+    const cfg = await api('GET', '/api/admin/platform/config');
+    if (cfg.default_model_provider) document.getElementById('cfg-provider').value = cfg.default_model_provider;
+    if (cfg.default_model_id) document.getElementById('cfg-model-id').value = cfg.default_model_id;
+    if (cfg.default_model_base_url) document.getElementById('cfg-base-url').value = cfg.default_model_base_url;
+    if (cfg.default_max_tokens) document.getElementById('cfg-max-tokens').value = cfg.default_max_tokens;
+    if (cfg.trial_quota_sessions) document.getElementById('cfg-trial-sessions').value = cfg.trial_quota_sessions;
+    if (cfg.trial_quota_tokens) document.getElementById('cfg-trial-tokens').value = cfg.trial_quota_tokens;
+  } catch(e) { showToast('Failed to load config: ' + e.message, 'error'); }
+}
+
+async function saveModelConfig() {
+  const payload = {
+    default_model_provider: document.getElementById('cfg-provider').value,
+    default_model_id: document.getElementById('cfg-model-id').value.trim(),
+    default_model_base_url: document.getElementById('cfg-base-url').value.trim(),
+    default_max_tokens: document.getElementById('cfg-max-tokens').value,
+  };
+  const apiKey = document.getElementById('cfg-api-key').value.trim();
+  if (apiKey) payload.default_model_api_key = apiKey;
+
+  try {
+    await api('PATCH', '/api/admin/platform/config', payload);
+    showToast('Model config saved!', 'success');
+    document.getElementById('cfg-api-key').value = '';
+  } catch(e) { showToast('Save failed: ' + e.message, 'error'); }
+}
+
+async function saveQuotaConfig() {
+  try {
+    await api('PATCH', '/api/admin/platform/config', {
+      trial_quota_sessions: document.getElementById('cfg-trial-sessions').value,
+      trial_quota_tokens: document.getElementById('cfg-trial-tokens').value,
+    });
+    showToast('Quota config saved!', 'success');
+  } catch(e) { showToast('Save failed: ' + e.message, 'error'); }
+}
+
+async function testModel() {
+  const btn = document.getElementById('btn-test');
+  const resultDiv = document.getElementById('test-result');
+  btn.textContent = 'Testing...';
+  btn.disabled = true;
+  resultDiv.textContent = '';
+  try {
+    const data = await api('POST', '/api/admin/platform/config/test');
+    if (data.status === 'success') {
+      resultDiv.innerHTML = `<span style="color:var(--success);">✓ ${data.response}</span>`;
+    } else {
+      resultDiv.innerHTML = `<span style="color:var(--danger);">✗ ${data.message}</span>`;
+    }
+  } catch(e) {
+    resultDiv.innerHTML = `<span style="color:var(--danger);">✗ ${e.message}</span>`;
+  } finally {
+    btn.textContent = 'Test Connection';
+    btn.disabled = false;
+  }
+}
+
+loadConfig();
+</script>
+{% endblock %}
