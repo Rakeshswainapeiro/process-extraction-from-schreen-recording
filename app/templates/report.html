@@ -78,10 +78,20 @@
 
             <!-- Summary Tab -->
             <div id="tab-summary" class="tab-content active">
-                <div class="card">
-                    <h3>Process Summary</h3>
-                    <div id="summaryContent" style="line-height:1.8;"></div>
+                <!-- Key metrics row -->
+                <div id="summaryMetrics" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-bottom:20px;"></div>
+                <!-- Summary card -->
+                <div class="card" style="margin-bottom:16px;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+                        <div style="width:36px;height:36px;background:#EEF2FF;border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        </div>
+                        <h3 style="margin:0;font-size:16px;font-weight:700;">Executive Summary</h3>
+                    </div>
+                    <div id="summaryContent" style="line-height:1.9;font-size:14.5px;color:#374151;"></div>
                 </div>
+                <!-- Process metadata -->
+                <div id="summaryMeta" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;"></div>
             </div>
 
             <!-- L3 Process Map -->
@@ -185,18 +195,14 @@
 
             <!-- Automation -->
             <div id="tab-automation" class="tab-content">
-                <div class="card">
-                    <h3>Automation Recommendations</h3>
-                    <div id="automationContent"></div>
-                </div>
+                <div id="automationHeader" style="margin-bottom:18px;"></div>
+                <div id="automationContent"></div>
             </div>
 
             <!-- AI -->
             <div id="tab-ai" class="tab-content">
-                <div class="card">
-                    <h3>AI Implementation Opportunities</h3>
-                    <div id="aiContent"></div>
-                </div>
+                <div id="aiHeader" style="margin-bottom:18px;"></div>
+                <div id="aiContent"></div>
             </div>
 
             <!-- Consulting -->
@@ -268,11 +274,17 @@
         flowchart: { curve: 'basis', padding: 20 },
     });
 
+    let _consultingLoaded = false;
     function switchTab(tabName) {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
         document.getElementById('tab-' + tabName).classList.add('active');
         event.target.classList.add('active');
+        // Auto-load consulting report on first visit
+        if (tabName === 'consulting' && !_consultingLoaded) {
+            _consultingLoaded = true;
+            loadConsulting();
+        }
     }
 
     document.querySelectorAll('.star').forEach(star => {
@@ -351,8 +363,72 @@
     }
 
     async function renderReport(data) {
-        // Summary
+        // ── Summary ───────────────────────────────────────────────────────────
         document.getElementById('summaryContent').innerHTML = data.summary || 'No summary available.';
+
+        // Compute metrics from L3/L4/recommendations
+        const l4Steps = (data.l4_process_map && data.l4_process_map.steps) || [];
+        const l3Steps = (data.l3_process_map && data.l3_process_map.steps) || [];
+        const totalSecs = l4Steps.reduce((s, st) => s + (st.estimated_time_seconds || 0), 0);
+        const allSystems = [...new Set(l3Steps.flatMap(s => s.systems || []))];
+        const autoRecs = data.automation_recommendations || [];
+        const aiRecs   = data.ai_recommendations || [];
+        const avgAutoScore = autoRecs.length ? Math.round(autoRecs.reduce((s,r)=>s+(r.possibility_score||0),0)/autoRecs.length) : 0;
+        const avgAiScore   = aiRecs.length   ? Math.round(aiRecs.reduce((s,r)=>s+(r.possibility_score||0),0)/aiRecs.length)   : 0;
+
+        const metrics = [
+            { label:'Total Process Time', value: totalSecs ? formatTime(totalSecs) : '—', color:'#4F46E5', icon:'⏱' },
+            { label:'Process Phases',     value: l3Steps.length || '—',                  color:'#0EA5E9', icon:'🗂' },
+            { label:'Detailed Steps',     value: l4Steps.length || '—',                  color:'#10B981', icon:'📋' },
+            { label:'Systems Used',       value: allSystems.length || '—',               color:'#F59E0B', icon:'🖥' },
+            { label:'Automation Score',   value: avgAutoScore ? avgAutoScore+'%' : '—',  color: avgAutoScore>=80?'#10B981':avgAutoScore>=60?'#F59E0B':'#6366F1', icon:'⚡' },
+            { label:'AI Opportunity',     value: avgAiScore   ? avgAiScore+'%'   : '—',  color: avgAiScore>=80?'#10B981':avgAiScore>=60?'#F59E0B':'#6366F1', icon:'🤖' },
+        ];
+        document.getElementById('summaryMetrics').innerHTML = metrics.map(m => `
+            <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:18px 16px;display:flex;flex-direction:column;gap:6px;">
+                <div style="font-size:22px;">${m.icon}</div>
+                <div style="font-size:22px;font-weight:800;color:${m.color};">${m.value}</div>
+                <div style="font-size:12px;color:#6B7280;font-weight:500;">${m.label}</div>
+            </div>`).join('');
+
+        // Process metadata cards
+        const l3 = data.l3_process_map || {};
+        let metaHtml = '';
+        if (l3.process_name || l3.process_owner || l3.objective) {
+            metaHtml += `<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:18px;">
+                <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:12px;display:flex;align-items:center;gap:6px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    Process Details
+                </div>
+                ${l3.process_name?`<div style="margin-bottom:8px;"><span style="font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:.5px;">Process Name</span><div style="font-size:14px;font-weight:600;color:#111827;margin-top:2px;">${esc(l3.process_name)}</div></div>`:''}
+                ${l3.process_owner?`<div style="margin-bottom:8px;"><span style="font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:.5px;">Process Owner</span><div style="font-size:14px;color:#374151;margin-top:2px;">${esc(l3.process_owner)}</div></div>`:''}
+                ${l3.objective?`<div><span style="font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:.5px;">Objective</span><div style="font-size:14px;color:#374151;margin-top:2px;line-height:1.6;">${esc(l3.objective)}</div></div>`:''}
+            </div>`;
+        }
+        if (allSystems.length) {
+            metaHtml += `<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:18px;">
+                <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:12px;display:flex;align-items:center;gap:6px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                    Systems &amp; Tools Involved
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                    ${allSystems.map(s=>`<span style="background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:500;">${esc(s)}</span>`).join('')}
+                </div>
+                ${l3Steps.length?`<div style="margin-top:14px;"><div style="font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Phase Breakdown</div>
+                    ${l3Steps.map((s,i)=>{
+                        const phaseColors=['#4F46E5','#0EA5E9','#10B981','#F59E0B','#EF4444','#8B5CF6'];
+                        const c=phaseColors[i%phaseColors.length];
+                        const phaseSecs=l4Steps.filter(st=>st.parent_l3===s.id).reduce((sum,st)=>sum+(st.estimated_time_seconds||0),0);
+                        return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                            <div style="width:10px;height:10px;border-radius:50%;background:${c};flex-shrink:0;"></div>
+                            <span style="font-size:13px;color:#374151;flex:1;">${esc(s.name)}</span>
+                            <span style="font-size:12px;color:#6B7280;background:#F3F4F6;padding:2px 8px;border-radius:10px;">${phaseSecs?formatTime(phaseSecs):'—'}</span>
+                        </div>`;
+                    }).join('')}
+                </div>`:''}
+            </div>`;
+        }
+        if (metaHtml) document.getElementById('summaryMeta').innerHTML = metaHtml;
 
         // L3
         if (data.l3_process_map) renderL3Map(data.l3_process_map);
@@ -482,46 +558,182 @@
             renderSOP(data.sop);
         }
 
-        // Automation Recommendations (with possibility scores)
-        if (data.automation_recommendations && data.automation_recommendations.length) {
-            let autoHtml = '<table class="rec-table"><tr><th>Area</th><th>Current State</th><th>Recommendation</th><th>Technology</th><th>Possibility</th><th>Rationale</th></tr>';
-            data.automation_recommendations.forEach(rec => {
+        // ── Automation Recommendations ────────────────────────────────────────
+        if (autoRecs.length) {
+            const totalAutoSecs = l4Steps.reduce((s,st)=>s+(st.estimated_time_seconds||0),0);
+            const avgScore = Math.round(autoRecs.reduce((s,r)=>s+(r.possibility_score||0),0)/autoRecs.length);
+            const highCount = autoRecs.filter(r=>(r.possibility_score||0)>=80).length;
+
+            document.getElementById('automationHeader').innerHTML = `
+            <div style="background:linear-gradient(135deg,#4F46E5 0%,#7C3AED 100%);border-radius:14px;padding:22px 24px;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+                <div>
+                    <div style="font-size:11px;opacity:.7;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Automation Analysis</div>
+                    <div style="font-size:20px;font-weight:800;">⚡ ${autoRecs.length} Opportunity${autoRecs.length>1?'s':''} Identified</div>
+                    <div style="font-size:13px;opacity:.85;margin-top:4px;">${highCount} high-confidence · Avg score ${avgScore}%</div>
+                </div>
+                <div style="display:flex;gap:20px;">
+                    <div style="text-align:center;">
+                        <div style="font-size:26px;font-weight:800;">${totalSecs?formatTime(totalSecs):'—'}</div>
+                        <div style="font-size:11px;opacity:.7;">Current Manual Time</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:26px;font-weight:800;color:#A5F3FC;">${totalSecs?formatTime(Math.round(totalSecs*(1-(avgScore/200)))):'—'}</div>
+                        <div style="font-size:11px;opacity:.7;">Est. Automated Time</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:26px;font-weight:800;color:#6EE7B7;">${totalSecs?formatTime(Math.round(totalSecs*(avgScore/200))):'—'}</div>
+                        <div style="font-size:11px;opacity:.7;">Time Saved / Run</div>
+                    </div>
+                </div>
+            </div>`;
+
+            const EFFORT = s => s>=85?{label:'Low Effort',color:'#10B981',bg:'#ECFDF5'}:s>=70?{label:'Medium Effort',color:'#F59E0B',bg:'#FFFBEB'}:{label:'High Effort',color:'#EF4444',bg:'#FEF2F2'};
+            const sorted = [...autoRecs].sort((a,b)=>(b.possibility_score||0)-(a.possibility_score||0));
+
+            let autoHtml = '';
+            sorted.forEach((rec, idx) => {
                 const score = rec.possibility_score || 0;
-                const scoreColor = score >= 85 ? 'var(--success)' : score >= 70 ? 'var(--primary)' : 'var(--warning)';
-                autoHtml += `<tr>
-                    <td><strong>${rec.area}</strong></td>
-                    <td>${rec.current_state}</td>
-                    <td>${rec.recommendation}</td>
-                    <td><span class="badge badge-info">${rec.technology}</span></td>
-                    <td><div style="display:flex;align-items:center;gap:6px;">
-                        <div style="width:40px;height:40px;border-radius:50%;border:3px solid ${scoreColor};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:${scoreColor};">${score}</div>
-                    </div></td>
-                    <td style="font-size:12px;color:var(--gray-600);">${rec.rationale || rec.estimated_roi || ''}</td>
-                </tr>`;
+                const scoreColor = score>=85?'#10B981':score>=70?'#4F46E5':'#F59E0B';
+                const effort = EFFORT(score);
+                const stepSecs = l4Steps.filter(st=>st.name&&rec.area&&st.name.toLowerCase().includes(rec.area.toLowerCase().split(' ')[0])).reduce((s,st)=>s+(st.estimated_time_seconds||0),0) || Math.round(totalSecs*0.3);
+                const savedSecs = Math.round(stepSecs*(score/100)*0.8);
+                const annualSaved = savedSecs*250; // ~250 runs/year assumption
+
+                autoHtml += `
+                <div style="background:#fff;border:1px solid #E5E7EB;border-radius:14px;margin-bottom:14px;overflow:hidden;">
+                    <!-- Card header -->
+                    <div style="padding:18px 22px 0;display:flex;align-items:flex-start;gap:16px;">
+                        <div style="flex-shrink:0;position:relative;width:64px;height:64px;">
+                            <svg viewBox="0 0 36 36" style="width:64px;height:64px;transform:rotate(-90deg);">
+                                <circle cx="18" cy="18" r="15.9" fill="none" stroke="#F3F4F6" stroke-width="3"/>
+                                <circle cx="18" cy="18" r="15.9" fill="none" stroke="${scoreColor}" stroke-width="3"
+                                    stroke-dasharray="${score} ${100-score}" stroke-linecap="round"/>
+                            </svg>
+                            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:${scoreColor};">${score}%</div>
+                        </div>
+                        <div style="flex:1;">
+                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+                                <span style="font-size:16px;font-weight:700;color:#111827;">${esc(rec.area)}</span>
+                                <span style="background:${effort.bg};color:${effort.color};border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600;">${effort.label}</span>
+                                <span style="background:#EFF6FF;color:#1D4ED8;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600;border:1px solid #BFDBFE;">${esc(rec.technology)}</span>
+                            </div>
+                            <!-- Timing row -->
+                            <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;">
+                                <div style="background:#FEF2F2;border-radius:8px;padding:6px 12px;display:flex;align-items:center;gap:6px;">
+                                    <span style="font-size:11px;color:#DC2626;font-weight:600;">⏱ Current</span>
+                                    <span style="font-size:13px;font-weight:700;color:#DC2626;">${formatTime(stepSecs)}</span>
+                                </div>
+                                <div style="background:#ECFDF5;border-radius:8px;padding:6px 12px;display:flex;align-items:center;gap:6px;">
+                                    <span style="font-size:11px;color:#059669;font-weight:600;">⚡ After</span>
+                                    <span style="font-size:13px;font-weight:700;color:#059669;">${formatTime(Math.max(stepSecs-savedSecs,5))}</span>
+                                </div>
+                                <div style="background:#EFF6FF;border-radius:8px;padding:6px 12px;display:flex;align-items:center;gap:6px;">
+                                    <span style="font-size:11px;color:#1D4ED8;font-weight:600;">💰 Save</span>
+                                    <span style="font-size:13px;font-weight:700;color:#1D4ED8;">${formatTime(savedSecs)}/run · ${formatTime(annualSaved)}/yr</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Two-column body -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;padding:16px 22px;border-top:1px solid #F3F4F6;margin-top:14px;">
+                        <div style="padding-right:16px;border-right:1px solid #F3F4F6;">
+                            <div style="font-size:11px;color:#EF4444;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">📌 Current State</div>
+                            <p style="font-size:13.5px;color:#374151;line-height:1.7;margin:0;">${esc(rec.current_state)}</p>
+                        </div>
+                        <div style="padding-left:16px;">
+                            <div style="font-size:11px;color:#059669;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">✅ Recommended Solution</div>
+                            <p style="font-size:13.5px;color:#374151;line-height:1.7;margin:0;">${esc(rec.recommendation)}</p>
+                        </div>
+                    </div>
+                    <!-- Rationale footer -->
+                    ${rec.rationale?`<div style="background:#F9FAFB;padding:12px 22px;border-top:1px solid #F3F4F6;font-size:12.5px;color:#6B7280;line-height:1.6;">
+                        <strong style="color:#374151;">Why this score:</strong> ${esc(rec.rationale)}
+                    </div>`:''}
+                </div>`;
             });
-            autoHtml += '</table>';
             document.getElementById('automationContent').innerHTML = autoHtml;
         } else {
             document.getElementById('automationContent').innerHTML = '<p style="color:var(--gray-400);text-align:center;padding:20px;">No high-confidence automation opportunities identified for this process.</p>';
         }
 
-        // AI Recommendations (with possibility scores)
-        if (data.ai_recommendations && data.ai_recommendations.length) {
-            let aiHtml = '<table class="rec-table"><tr><th>Area</th><th>AI Solution</th><th>Technology</th><th>Possibility</th><th>Rationale</th></tr>';
-            data.ai_recommendations.forEach(rec => {
+        // ── AI Opportunities ──────────────────────────────────────────────────
+        if (aiRecs.length) {
+            const avgAiScoreAll = Math.round(aiRecs.reduce((s,r)=>s+(r.possibility_score||0),0)/aiRecs.length);
+            const highAiCount = aiRecs.filter(r=>(r.possibility_score||0)>=80).length;
+
+            document.getElementById('aiHeader').innerHTML = `
+            <div style="background:linear-gradient(135deg,#0EA5E9 0%,#6366F1 100%);border-radius:14px;padding:22px 24px;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+                <div>
+                    <div style="font-size:11px;opacity:.7;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">AI Transformation</div>
+                    <div style="font-size:20px;font-weight:800;">🤖 ${aiRecs.length} AI Opportunity${aiRecs.length>1?'s':''} Found</div>
+                    <div style="font-size:13px;opacity:.85;margin-top:4px;">${highAiCount} high-impact · Avg confidence ${avgAiScoreAll}%</div>
+                </div>
+                <div style="display:flex;gap:20px;">
+                    <div style="text-align:center;">
+                        <div style="font-size:26px;font-weight:800;">${aiRecs.filter(r=>(r.possibility_score||0)>=80).length}</div>
+                        <div style="font-size:11px;opacity:.7;">High Impact</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:26px;font-weight:800;color:#A5F3FC;">${aiRecs.filter(r=>(r.possibility_score||0)>=60&&(r.possibility_score||0)<80).length}</div>
+                        <div style="font-size:11px;opacity:.7;">Medium Impact</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:26px;font-weight:800;color:#6EE7B7;">${avgAiScoreAll}%</div>
+                        <div style="font-size:11px;opacity:.7;">Avg Confidence</div>
+                    </div>
+                </div>
+            </div>`;
+
+            const AI_TECH_COLORS = {
+                'NLP':{'bg':'#FDF4FF','color':'#9333EA'},'OCR':{'bg':'#FFF7ED','color':'#EA580C'},
+                'ML':{'bg':'#F0FDF4','color':'#16A34A'},'GenAI':{'bg':'#EFF6FF','color':'#2563EB'},
+                'Computer Vision':{'bg':'#FFF1F2','color':'#E11D48'},'default':{'bg':'#F8FAFC','color':'#475569'},
+            };
+            const sorted2 = [...aiRecs].sort((a,b)=>(b.possibility_score||0)-(a.possibility_score||0));
+
+            let aiHtml = '';
+            sorted2.forEach(rec => {
                 const score = rec.possibility_score || 0;
-                const scoreColor = score >= 85 ? 'var(--success)' : score >= 70 ? 'var(--primary)' : 'var(--warning)';
-                aiHtml += `<tr>
-                    <td><strong>${rec.area}</strong></td>
-                    <td>${rec.ai_solution}</td>
-                    <td><span class="badge badge-info">${rec.technology}</span></td>
-                    <td><div style="display:flex;align-items:center;gap:6px;">
-                        <div style="width:40px;height:40px;border-radius:50%;border:3px solid ${scoreColor};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:${scoreColor};">${score}</div>
-                    </div></td>
-                    <td style="font-size:12px;color:var(--gray-600);">${rec.rationale || rec.business_value || ''}</td>
-                </tr>`;
+                const scoreColor = score>=85?'#10B981':score>=70?'#0EA5E9':'#F59E0B';
+                const techParts = (rec.technology||'').split('/').map(t=>t.trim());
+                const impl = score>=85?{label:'Quick Win (1-4 wks)',color:'#10B981',bg:'#ECFDF5'}:score>=70?{label:'Mid-term (1-3 mo)',color:'#0EA5E9',bg:'#EFF6FF'}:{label:'Strategic (3-6 mo)',color:'#7C3AED',bg:'#F5F3FF'};
+
+                aiHtml += `
+                <div style="background:#fff;border:1px solid #E5E7EB;border-radius:14px;margin-bottom:14px;overflow:hidden;">
+                    <div style="padding:18px 22px 0;display:flex;align-items:flex-start;gap:16px;">
+                        <div style="flex-shrink:0;position:relative;width:64px;height:64px;">
+                            <svg viewBox="0 0 36 36" style="width:64px;height:64px;transform:rotate(-90deg);">
+                                <circle cx="18" cy="18" r="15.9" fill="none" stroke="#F3F4F6" stroke-width="3"/>
+                                <circle cx="18" cy="18" r="15.9" fill="none" stroke="${scoreColor}" stroke-width="3"
+                                    stroke-dasharray="${score} ${100-score}" stroke-linecap="round"/>
+                            </svg>
+                            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:${scoreColor};">${score}%</div>
+                        </div>
+                        <div style="flex:1;">
+                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+                                <span style="font-size:16px;font-weight:700;color:#111827;">${esc(rec.area)}</span>
+                                <span style="background:${impl.bg};color:${impl.color};border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600;">🗓 ${impl.label}</span>
+                            </div>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                ${techParts.map(t=>{const tc=AI_TECH_COLORS[t]||AI_TECH_COLORS.default;return`<span style="background:${tc.bg};color:${tc.color};border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;border:1px solid ${tc.color}30;">${t}</span>`;}).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;padding:16px 22px;border-top:1px solid #F3F4F6;margin-top:14px;">
+                        <div style="padding-right:16px;border-right:1px solid #F3F4F6;">
+                            <div style="font-size:11px;color:#EF4444;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">📌 Today (Manual)</div>
+                            <p style="font-size:13.5px;color:#374151;line-height:1.7;margin:0;">${esc(rec.current_state)}</p>
+                        </div>
+                        <div style="padding-left:16px;">
+                            <div style="font-size:11px;color:#0EA5E9;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">🤖 With AI</div>
+                            <p style="font-size:13.5px;color:#374151;line-height:1.7;margin:0;">${esc(rec.ai_solution)}</p>
+                        </div>
+                    </div>
+                    ${rec.rationale?`<div style="background:#F9FAFB;padding:12px 22px;border-top:1px solid #F3F4F6;font-size:12.5px;color:#6B7280;line-height:1.6;">
+                        <strong style="color:#374151;">Confidence rationale:</strong> ${esc(rec.rationale)}
+                    </div>`:''}
+                </div>`;
             });
-            aiHtml += '</table>';
             document.getElementById('aiContent').innerHTML = aiHtml;
         } else {
             document.getElementById('aiContent').innerHTML = '<p style="color:var(--gray-400);text-align:center;padding:20px;">No high-confidence AI opportunities identified for this process.</p>';
@@ -646,13 +858,28 @@
     }
 
     async function loadConsulting() {
-        document.getElementById('consultingContent').innerHTML = '<div style="text-align:center; padding:40px;"><div class="loading-spinner" style="margin:0 auto;"></div><p style="margin-top:16px;">Generating consulting report...</p></div>';
+        document.getElementById('consultingContent').innerHTML = `
+        <div style="text-align:center;padding:48px 24px;">
+            <div class="loading-spinner" style="margin:0 auto;"></div>
+            <p style="margin-top:16px;font-size:14px;color:#6B7280;">Generating AI consulting report — this takes 15–30 seconds…</p>
+        </div>`;
         try {
             const resp = await fetch(`/api/reports/${RECORDING_ID}/consulting`);
             const data = await resp.json();
-            document.getElementById('consultingContent').innerHTML = marked.parse(data.advice);
+            document.getElementById('consultingContent').innerHTML = `
+            <div style="background:linear-gradient(135deg,#1E1B4B 0%,#312E81 100%);border-radius:14px;padding:22px 26px;color:#fff;margin-bottom:24px;display:flex;align-items:center;gap:16px;">
+                <div style="font-size:36px;">📊</div>
+                <div>
+                    <div style="font-size:11px;opacity:.6;letter-spacing:1px;text-transform:uppercase;">AI Consulting Report</div>
+                    <div style="font-size:20px;font-weight:800;margin-top:2px;">Digital Transformation Strategy</div>
+                    <div style="font-size:13px;opacity:.75;margin-top:4px;">Generated for this process — Quick Wins → Strategic Initiatives → ROI</div>
+                </div>
+            </div>
+            <div class="consulting-body" style="background:#fff;border:1px solid #E5E7EB;border-radius:14px;padding:28px 32px;line-height:1.9;font-size:14.5px;color:#374151;">
+                ${marked.parse(data.advice)}
+            </div>`;
         } catch (err) {
-            document.getElementById('consultingContent').innerHTML = '<p style="color:var(--danger);">Failed to generate report.</p>';
+            document.getElementById('consultingContent').innerHTML = '<p style="color:var(--danger);padding:20px;">Failed to generate consulting report. Please try again.</p>';
         }
     }
 

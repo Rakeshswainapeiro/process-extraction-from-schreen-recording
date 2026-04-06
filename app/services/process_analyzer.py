@@ -282,7 +282,8 @@ Respond ONLY with valid JSON in this exact format (no extra keys, no markdown, n
 }}
 
 CRITICAL RULES:
-- automation_recommendations / ai_recommendations: only include scores ≥ 60. Empty array [] if none qualify.
+- automation_recommendations: Minimum 5, maximum 8 items. Score ≥ 60. Cover every repetitive, manual, or rule-based step you can find. If obvious candidates are sparse, include cross-system data transfer, notifications, reporting, and scheduling as candidates.
+- ai_recommendations: Minimum 5, maximum 8 items. Score ≥ 60. Cover NLP, OCR, ML prediction, GenAI assistance, anomaly detection, smart routing, auto-classification — apply each creatively to the process steps observed.
 - L3 RULES: Create 3-6 high-level phases. Each phase groups multiple L4 steps that share a common business objective. Be specific about inputs/outputs/systems.
 - L4 RULES: Create one L4 step per distinct user action (not per screen). Minimum 8-15 steps for a typical process. detailed_actions must have 2-5 micro-steps each. pre_condition and post_condition must be specific and verifiable.
 - SOP RULES (CRITICAL):
@@ -485,30 +486,86 @@ CRITICAL RULES:
             "automation_recommendations": [
                 {
                     "area": "Data Entry",
-                    "current_state": "Manual typing into form fields",
-                    "recommendation": "Auto-populate fields from source data via RPA or API integration",
+                    "current_state": "User manually types data into every form field, increasing error risk and cycle time",
+                    "recommendation": "Deploy RPA bot to auto-populate fields from source data (spreadsheet, email, or prior system)",
                     "technology": "RPA / API Integration",
-                    "possibility_score": 80,
-                    "rationale": "Repetitive form filling across standard fields is a strong RPA candidate"
+                    "possibility_score": 82,
+                    "rationale": "Repetitive form filling with predictable field mapping is a high-confidence RPA candidate"
                 },
                 {
                     "area": "Cross-System Navigation",
-                    "current_state": "Manually switching between applications",
-                    "recommendation": "Build an integration layer or unified dashboard",
+                    "current_state": "User manually switches between applications, re-keying data each time",
+                    "recommendation": "Build an API middleware layer or unified dashboard to synchronise data automatically",
                     "technology": "API Middleware / Workflow Engine",
-                    "possibility_score": 65,
-                    "rationale": "Depends on whether the systems expose APIs; worth exploring"
+                    "possibility_score": 72,
+                    "rationale": "If both systems expose APIs, integration eliminates duplicate data entry entirely"
+                },
+                {
+                    "area": "Approval & Notifications",
+                    "current_state": "Approvals sent manually via email with no tracking or SLA enforcement",
+                    "recommendation": "Implement automated workflow with escalation rules, deadline alerts, and audit trail",
+                    "technology": "Workflow Engine / BPM",
+                    "possibility_score": 78,
+                    "rationale": "Rule-based routing with fixed SLA thresholds is straightforward to automate"
+                },
+                {
+                    "area": "Report Generation",
+                    "current_state": "Summary reports manually compiled by copying data from multiple screens",
+                    "recommendation": "Schedule automated reports generated directly from the system database on a defined cadence",
+                    "technology": "Scheduled Script / BI Tool",
+                    "possibility_score": 85,
+                    "rationale": "Data aggregation from a known schema is one of the highest-confidence automation areas"
+                },
+                {
+                    "area": "Validation & Error Checking",
+                    "current_state": "Users visually scan fields for errors before submission",
+                    "recommendation": "Implement real-time field validation rules with pre-submission checks and guided corrections",
+                    "technology": "Rules Engine / Script",
+                    "possibility_score": 68,
+                    "rationale": "Business validation rules can be encoded; human judgement may still be required for edge cases"
                 },
             ],
 
             "ai_recommendations": [
                 {
-                    "area": "Data Extraction",
-                    "current_state": "User manually reads source documents and types data",
-                    "ai_solution": "AI-powered document extraction to read and pre-fill forms",
+                    "area": "Data Extraction from Documents",
+                    "current_state": "User manually reads source documents and re-types data into the system",
+                    "ai_solution": "Intelligent document processing to extract, validate, and pre-fill structured fields automatically",
                     "technology": "OCR + NLP",
+                    "possibility_score": 78,
+                    "rationale": "Well-proven for semi-structured documents (invoices, forms, emails) with 90%+ accuracy"
+                },
+                {
+                    "area": "Smart Data Classification",
+                    "current_state": "User manually selects category, type, or priority for each record",
+                    "ai_solution": "ML classifier trained on historical data to auto-assign categories with confidence scores",
+                    "technology": "ML / Classification",
+                    "possibility_score": 72,
+                    "rationale": "Effective when historical labelled data exists; reduces manual decision effort by 60-80%"
+                },
+                {
+                    "area": "Anomaly & Error Detection",
+                    "current_state": "Errors only caught during manual review or after submission",
+                    "ai_solution": "Real-time anomaly detection flags unusual values, duplicates, or outliers before submission",
+                    "technology": "ML / Anomaly Detection",
+                    "possibility_score": 70,
+                    "rationale": "Pattern-based detection on structured fields is well-suited to this process type"
+                },
+                {
+                    "area": "Natural Language Summarisation",
+                    "current_state": "User manually writes notes and summaries for each transaction",
+                    "ai_solution": "GenAI model auto-generates contextual summaries from activity data and field values",
+                    "technology": "GenAI / NLP",
                     "possibility_score": 75,
-                    "rationale": "If source data comes from documents/emails, AI extraction is well-proven"
+                    "rationale": "Large language models excel at structured-to-natural-language generation with low hallucination risk"
+                },
+                {
+                    "area": "Predictive Routing & Prioritisation",
+                    "current_state": "Records manually assigned to teams or queues based on rules or intuition",
+                    "ai_solution": "ML model predicts optimal assignment based on workload, urgency, and historical outcomes",
+                    "technology": "ML / Predictive Analytics",
+                    "possibility_score": 65,
+                    "rationale": "Requires sufficient historical assignment data; high ROI when volume is large"
                 },
             ],
 
