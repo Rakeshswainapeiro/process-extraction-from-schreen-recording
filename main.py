@@ -9,6 +9,7 @@ from app.models.database import init_db, get_db, async_session
 from app.routes import auth_routes, recording_routes, report_routes, export_routes, settings_routes
 from app.routes.usage_routes import router as usage_router
 from app.routes.admin_routes import router as admin_router
+from app.routes.payment_routes import router as payment_router
 from app.routes.auth_routes import get_current_user
 from app.services.auth_service import seed_test_users
 from config import settings
@@ -28,6 +29,7 @@ app.include_router(export_routes.router)
 app.include_router(settings_routes.router)
 app.include_router(usage_router)
 app.include_router(admin_router)
+app.include_router(payment_router)
 
 
 @app.on_event("startup")
@@ -68,7 +70,7 @@ async def _seed_platform_config(db):
          "Model ID for the platform default model"),
         ("default_model_base_url", settings.CUSTOM_AI_BASE_URL or "",
          "Base URL for the platform default model (blank = provider default)"),
-        ("default_model_api_key", "",
+        ("default_model_api_key", settings.CUSTOM_AI_API_KEY or "",
          "Encrypted API key for the platform default model"),
         ("default_max_tokens", "8000",
          "Default max tokens for platform model"),

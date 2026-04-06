@@ -217,18 +217,16 @@
       const pack = getSelectedPack();
       const btn = document.getElementById('btn-purchase');
       btn.disabled = true;
-      btn.querySelector('#btn-text').textContent = 'Processing...';
+      document.getElementById('btn-text').textContent = 'Processing...';
 
       try {
-        const res = await fetch('/api/usage/purchases', {
+        const res = await fetch('/api/payments/checkout', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             purchase_type: selectedType,
             quantity: pack.qty,
-            amount_usd_cents: pack.price,
-            payment_reference: 'demo-' + Date.now(),
           }),
         });
         if (!res.ok) {
@@ -236,15 +234,30 @@
           throw new Error(err.detail || 'Purchase failed');
         }
         const data = await res.json();
-        showAlert('success', `Success! ${pack.qty} ${selectedType} added to your account. Redirecting...`);
-        setTimeout(() => location.href = '/dashboard', 2000);
+        // Both demo and Stripe return a redirect_url
+        window.location.href = data.redirect_url;
       } catch(e) {
         showAlert('error', e.message);
-      } finally {
         btn.disabled = false;
         updateBtnLabel();
       }
     }
+
+    // Show success / cancelled banners from URL params (after Stripe redirect)
+    (function checkParams() {
+      const p = new URLSearchParams(location.search);
+      if (p.get('success')) {
+        const msg = p.get('demo')
+          ? 'Demo purchase successful! Credits added to your account.'
+          : 'Payment successful! Credits have been added to your account.';
+        showAlert('success', msg);
+        // Clean URL
+        history.replaceState({}, '', '/upgrade');
+      } else if (p.get('cancelled')) {
+        showAlert('error', 'Payment cancelled. You have not been charged.');
+        history.replaceState({}, '', '/upgrade');
+      }
+    })();
 
     function showAlert(type, msg) {
       const el = document.getElementById('alert-' + type);

@@ -103,18 +103,6 @@ class ProcessAnalyzer:
                         error_message=error_msg,
                     ))
 
-                # Deduct usage AFTER successful AI call (not on errors)
-                if status_code == 200 and user_id:
-                    from app.services.usage_service import check_and_deduct
-                    await check_and_deduct(
-                        db=db,
-                        user_id=user_id,
-                        recording_id=recording_id,
-                        model_config_id=resolved.config_id,
-                        model_provider=resolved.provider,
-                        model_id=resolved.model_id,
-                        tokens_used=tokens_used,
-                    )
             else:
                 report = self._generate_demo_report(activities, recording)
                 tokens_used = 0
@@ -144,12 +132,33 @@ class ProcessAnalyzer:
             existing_report.mermaid_diagram = process_report.mermaid_diagram
             existing_report.updated_at = datetime.datetime.utcnow()
             await db.commit()
-            return existing_report
+            saved_report = existing_report
         else:
             db.add(process_report)
             await db.commit()
             await db.refresh(process_report)
-            return process_report
+            saved_report = process_report
+
+        # Deduct usage AFTER report is safely saved — so the report is never lost
+        if resolved and resolved.provider != "demo" and user_id:
+            try:
+                from app.services.usage_service import check_and_deduct
+                await check_and_deduct(
+                    db=db,
+                    user_id=user_id,
+                    recording_id=recording_id,
+                    model_config_id=resolved.config_id,
+                    model_provider=resolved.provider,
+                    model_id=resolved.model_id,
+                    tokens_used=tokens_used,
+                )
+            except Exception as quota_exc:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "Usage deduction failed (report was saved): %s", quota_exc
+                )
+
+        return saved_report
 
     def _build_prompt(self, activities_text: str, recording) -> str:
         return f"""You are a senior Business Process Analyst and Solutions Architect. You are given a raw activity log from a screen recording of a user performing a business process across one or more applications.
@@ -301,12 +310,12 @@ CRITICAL RULES:
             return await self._call_openai_compat(resolved, prompt)
 
     async def _call_anthropic(self, resolved: ResolvedModel, prompt: str) -> Tuple[dict, int]:
-        """Call Anthropic Claude API. Returns (parsed_report, tokens_used)."""
-        client = anthropic.Anthropic(
+        """Call Anthropic Claude API (async). Returns (parsed_report, tokens_used)."""
+        client = anthropic.AsyncAnthropic(
             api_key=resolved.api_key,
             **({"base_url": resolved.base_url} if resolved.base_url else {}),
         )
-        message = client.messages.create(
+        message = await client.messages.create(
             model=resolved.model_id,
             max_tokens=resolved.max_tokens,
             messages=[{"role": "user", "content": prompt}],
@@ -327,11 +336,15 @@ CRITICAL RULES:
             "max_tokens": resolved.max_tokens,
             "temperature": 0.2,
         }
-        async with httpx.AsyncClient(timeout=120) as http_client:
+        # 300s timeout — large prompts with detailed JSON schemas can take 2-4 min
+        async with httpx.AsyncClient(timeout=300) as http_client:
             resp = await http_client.post(f"{endpoint}/chat/completions", headers=headers, json=payload)
             resp.raise_for_status()
             result = resp.json()
-            text = result["choices"][0]["message"]["content"]
+            choices = result.get("choices") or []
+            if not choices:
+                raise ValueError(f"API returned empty choices. Response: {result}")
+            text = choices[0]["message"]["content"]
             tokens = result.get("usage", {}).get("total_tokens", 0)
             return self._parse_json_response(text), tokens
 

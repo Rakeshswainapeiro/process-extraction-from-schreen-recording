@@ -545,6 +545,43 @@
             border-radius: 20px;
         }
 
+        /* Action Dropdown */
+        .action-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .action-menu {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 5px);
+            background: white;
+            min-width: 140px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border-radius: 10px;
+            border: 1px solid var(--gray-200);
+            z-index: 100;
+            padding: 6px 0;
+            display: none;
+        }
+        .action-menu.show { display: block; animation: fadeInScale .15s ease; }
+        .action-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--gray-700);
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
+            border: none;
+            background: transparent;
+            transition: background 0.15s;
+        }
+        .action-item:hover { background: var(--gray-50); color: var(--primary); }
+        .action-item.delete:hover { background: #FEE2E2; color: var(--danger); }
+
         @media (max-width: 768px) {
             .topbar { left: 0; }
             .stats-grid { grid-template-columns: 1fr; }
@@ -624,6 +661,19 @@
                   </div>
                 </div>
 
+                {% if user.is_super_admin %}
+                <a href="/admin" style="
+                    display:inline-flex; align-items:center; gap:6px;
+                    padding:6px 14px; background:#1e1b4b; color:#fff;
+                    border-radius:8px; font-size:12px; font-weight:600;
+                    text-decoration:none; transition:background .15s;
+                    border: none; cursor:pointer;"
+                    onmouseover="this.style.background='#3730a3'"
+                    onmouseout="this.style.background='#1e1b4b'">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                    Admin Panel
+                </a>
+                {% endif %}
                 <div class="topbar-date" id="topbarDate">Loading...</div>
                 <div class="topbar-avatar" title="{{ user.full_name }}" onclick="confirmLogout(event)">{{ user.full_name[0] }}</div>
             </div>
@@ -865,6 +915,18 @@
             return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         }
 
+        function toggleActionMenu(e, id) {
+            e.stopPropagation();
+            const menus = document.querySelectorAll('.action-menu');
+            menus.forEach(m => { if (m.id !== `actionMenu-${id}`) m.classList.remove('show'); });
+            const menu = document.getElementById(`actionMenu-${id}`);
+            if (menu) menu.classList.toggle('show');
+        }
+        document.addEventListener('click', () => {
+            const menus = document.querySelectorAll('.action-menu.show');
+            menus.forEach(m => m.classList.remove('show'));
+        });
+
         // Override loadRecordings from dashboard.js to use the new table UI
         let allRecordings = [];
         let currentRecPage = 1;
@@ -941,8 +1003,23 @@
                     <td>
                         <div class="rec-actions">
                             ${canView ? `<a href="/report/${r.id}" class="btn-view" style="padding:8px 16px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>View Report</a>` : ''}
-                            ${canView ? `<button class="btn-icon" onclick="exportReport(${r.id})" title="Export"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>` : ''}
-                            <button class="btn-icon" onclick="deleteRecording(${r.id})" title="Delete recording"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
+                            <div class="action-dropdown">
+                                <button class="btn-icon" onclick="toggleActionMenu(event, ${r.id})" title="More actions"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/></svg></button>
+                                <div id="actionMenu-${r.id}" class="action-menu">
+                                    <button class="action-item" onclick="editRecordingTitle(${r.id}, decodeURIComponent('${encodeURIComponent(r.title || '')}'))">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> 
+                                        Edit Title
+                                    </button>
+                                    ${canView ? `<button class="action-item" onclick="exportReport(${r.id})">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                        Export
+                                    </button>` : ''}
+                                    <button class="action-item delete" onclick="deleteRecording(${r.id})">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </td>
                 </tr>`;
@@ -1010,6 +1087,24 @@
         });
 
         window.deleteRecording = openDeleteModal;
+
+        window.editRecordingTitle = async function(id, currentTitle) {
+            const newTitle = prompt("Enter new recording title:", currentTitle);
+            if (newTitle === null || newTitle.trim() === "" || newTitle === currentTitle) return;
+            
+            try {
+                const resp = await fetch(`/api/recordings/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: newTitle.trim() })
+                });
+                if (!resp.ok) throw new Error('Failed to update title');
+                showToast('Recording title updated.', 'success');
+                window.loadRecordings();
+            } catch (err) {
+                showToast('Could not update recording title.', 'error');
+            }
+        };
 
         // Re-run after override is in place
         window.loadRecordings();

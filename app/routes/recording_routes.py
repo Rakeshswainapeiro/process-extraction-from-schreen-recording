@@ -202,6 +202,22 @@ async def get_recording(recording_id: int, db: AsyncSession = Depends(get_db),
     })
 
 
+@router.put("/{recording_id}")
+async def update_recording(recording_id: int, request: Request, db: AsyncSession = Depends(get_db),
+                           user=Depends(require_user)):
+    data = await request.json()
+    result = await db.execute(select(Recording).where(Recording.id == recording_id))
+    recording = result.scalar_one_or_none()
+    if not recording or recording.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Recording not found")
+
+    if "title" in data:
+        recording.title = data["title"]
+        
+    await db.commit()
+    return JSONResponse({"status": "updated", "id": recording.id, "title": recording.title})
+
+
 @router.delete("/{recording_id}")
 async def delete_recording(recording_id: int, db: AsyncSession = Depends(get_db),
                            user=Depends(require_user)):

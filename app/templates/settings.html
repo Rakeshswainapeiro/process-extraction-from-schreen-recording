@@ -545,6 +545,48 @@
                 <p>Manage your AI models and application preferences.</p>
             </div>
 
+            <!-- Usage & Quota Section -->
+            <div class="settings-section">
+                <div class="settings-section-title">
+                    <div class="icon-bg" style="background: #E0E7FF; color: #4F46E5;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="4" width="20" height="16" rx="2" />
+                            <path d="M12 12v.01" />
+                            <path d="M8 12v.01" />
+                            <path d="M16 12v.01" />
+                        </svg>
+                    </div>
+                    <h2>Usage & Billing</h2>
+                </div>
+                
+                <div class="grid-3" style="margin-bottom: 24px;">
+                    <div class="stat-card">
+                        <div class="stat-label">Free Trial Sessions</div>
+                        <div class="stat-value" id="settingsTrialStatus" style="font-size: 28px;">--</div>
+                        <div style="font-size: 12px; color: var(--gray-500); margin-top: 4px;" id="settingsTrialDesc">Loading...</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Paid Sessions Balance</div>
+                        <div class="stat-value" id="settingsPaidSessions" style="font-size: 28px; color: #10B981;">--</div>
+                        <div style="font-size: 12px; color: var(--gray-500); margin-top: 4px;">Remaining recordings</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Paid Token Balance</div>
+                        <div class="stat-value" id="settingsPaidTokens" style="font-size: 28px; color: #8B5CF6;">--</div>
+                        <div style="font-size: 12px; color: var(--gray-500); margin-top: 4px;">For custom/large models</div>
+                    </div>
+                </div>
+
+                <div class="action-row" style="margin-top: 0; padding-top: 0; border-top: none; justify-content: flex-start;">
+                    <a href="/upgrade" class="btn-fancy primary" style="text-decoration:none;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                        </svg>
+                        Buy Credits
+                    </a>
+                </div>
+            </div>
+
             <!-- Add New Model Section -->
             <div class="settings-section">
                 <div class="settings-section-title">
@@ -694,55 +736,33 @@
                 </div>
             </div>
 
-            <!-- Quick Reference -->
+            <!-- Purchase History -->
             <div class="settings-section">
                 <div class="settings-section-title">
-                    <div class="icon-bg" style="background: #EFF6FF; color: #3B82F6;">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <circle cx="12" cy="12" r="10" />
-                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                    <div class="icon-bg" style="background: #F3F4F6; color: #4B5563;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="5" width="20" height="14" rx="2" />
+                            <line x1="2" y1="10" x2="22" y2="10" />
                         </svg>
                     </div>
-                    <h2>API Reference Guide</h2>
+                    <h2>Purchase History</h2>
                 </div>
                 <div style="overflow-x: auto;">
                     <table class="reference-table">
                         <thead>
                             <tr>
-                                <th>Provider</th>
-                                <th>Default Base URL</th>
-                                <th>Recommended Models</th>
+                                <th>Date</th>
+                                <th>Purchased Item</th>
+                                <th>Amount</th>
+                                <th>Status</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="purchasesList">
                             <tr>
-                                <td><span class="provider-icon anthropic">Anthropic</span></td>
-                                <td><code>https://api.anthropic.com</code></td>
-                                <td>claude-opus-4-6, claude-sonnet-4-6, claude-haiku</td>
-                            </tr>
-                            <tr>
-                                <td><span class="provider-icon openai">OpenAI</span></td>
-                                <td><code>https://api.openai.com/v1</code></td>
-                                <td>gpt-4o, gpt-4-turbo, gpt-3.5-turbo</td>
-                            </tr>
-                            <tr>
-                                <td><span class="provider-icon custom">Custom</span></td>
-                                <td><code>https://your-server.com/v1</code></td>
-                                <td>Any OpenAI-compatible endpoint (vLLM, Ollama, etc.)</td>
+                                <td colspan="4" style="text-align:center;color:var(--gray-500);">Loading...</td>
                             </tr>
                         </tbody>
                     </table>
-                </div>
-                <div
-                    style="margin-top: 20px; padding: 16px; background: #FFFBEB; border: 1px solid #FDE68A; border-left: 4px solid #F59E0B; border-radius: 8px;">
-                    <p style="font-size: 13px; color: #92400E; margin: 0;">
-                        <strong style="display: block; margin-bottom: 4px;">Custom Endpoint Note:</strong>
-                        Your server must expose an OpenAI-compatible <code>/chat/completions</code> endpoint. The
-                        application uses a standard messages payload, compatible with vLLM, Ollama, LiteLLM, and
-                        LocalAI.
-                    </p>
                 </div>
             </div>
         </main>
@@ -986,8 +1006,86 @@
             }
         }
 
-        // Load models on page ready
+        async function loadUsageStats() {
+            try {
+                const resp = await fetch('/api/usage/me');
+                if (resp.ok) {
+                    const data = await resp.json();
+                    
+                    const trialLeft = data.trial_sessions_max - data.trial_sessions_used;
+                    document.getElementById('settingsTrialStatus').textContent = data.is_trial ? trialLeft : '0';
+                    document.getElementById('settingsTrialDesc').textContent = data.is_trial ? `of ${data.trial_sessions_max} free sessions left` : 'Trial ended';
+                    
+                    document.getElementById('settingsPaidSessions').textContent = data.remaining_sessions;
+                    document.getElementById('settingsPaidTokens').textContent = data.remaining_tokens.toLocaleString();
+                }
+            } catch (err) {
+                console.error('Failed to load usage stats:', err);
+            }
+        }
+
+        async function loadPurchases() {
+            try {
+                const resp = await fetch('/api/usage/purchases');
+                const tbody = document.getElementById('purchasesList');
+                if (resp.ok) {
+                    const purchases = await resp.json();
+                    if (!purchases.length) {
+                        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--gray-500);">No purchase history found.</td></tr>';
+                        return;
+                    }
+                    
+                    let html = '';
+                    purchases.forEach(p => {
+                        const date = new Date(p.created_at).toLocaleDateString();
+                        const amount = p.amount_usd > 0 ? `$${p.amount_usd.toFixed(2)}` : '<span style="color:var(--gray-500);font-size:13px;">Free / Grant</span>';
+                        const statusColor = p.status === 'completed' ? '#10B981' : (p.status === 'failed' ? '#EF4444' : '#F59E0B');
+                        
+                        let badgeHtml = '';
+                        if (p.purchase_type === 'tokens') {
+                            const qtyStr = p.quantity >= 1000000 
+                                ? (p.quantity/1000000).toFixed(1).replace(/\.0$/, '') + 'M' 
+                                : p.quantity >= 1000 
+                                    ? (p.quantity/1000).toFixed(0) + 'K' 
+                                    : p.quantity;
+                            badgeHtml = `
+                                <div style="display:inline-flex;align-items:center;gap:6px;background:#F3E8FF;color:#7C3AED;padding:4px 12px;border-radius:20px;font-weight:600;font-size:13px;box-shadow:inset 0 0 0 1px rgba(124,58,237,0.1);">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                                    +${qtyStr} Tokens
+                                </div>
+                            `;
+                        } else {
+                            badgeHtml = `
+                                <div style="display:inline-flex;align-items:center;gap:6px;background:#ECFDF5;color:#059669;padding:4px 12px;border-radius:20px;font-weight:600;font-size:13px;box-shadow:inset 0 0 0 1px rgba(16,185,129,0.1);">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                    +${p.quantity} Sessions
+                                </div>
+                            `;
+                        }
+                        
+                        html += `
+                            <tr>
+                                <td style="color:var(--gray-600);font-weight:500;">${date}</td>
+                                <td>${badgeHtml}</td>
+                                <td style="font-weight:600;">${amount}</td>
+                                <td><span style="color:${statusColor};font-weight:700;font-size:11px;padding:4px 10px;background:${statusColor}15;border-radius:12px;text-transform:uppercase;">${p.status}</span></td>
+                            </tr>
+                        `;
+                    });
+                    tbody.innerHTML = html;
+                } else {
+                    throw new Error('Server error');
+                }
+            } catch (err) {
+                document.getElementById('purchasesList').innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--danger);padding:20px;">Failed to load purchase history.</td></tr>';
+                console.error('Failed to load purchases:', err);
+            }
+        }
+
+        // Load data on page ready
         loadModels();
+        loadUsageStats();
+        loadPurchases();
     </script>
 
     <!-- Logout confirmation modal -->

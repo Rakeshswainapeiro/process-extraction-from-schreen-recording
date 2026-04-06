@@ -81,14 +81,19 @@ async def resolve_model(
                 api_key = raw_key   # stored unencrypted (legacy / admin typed it in)
         else:
             api_key = ""
-        return ResolvedModel(
-            provider=platform.get("default_model_provider", "anthropic"),
-            model_id=platform["default_model_id"],
-            api_key=api_key,
-            base_url=platform.get("default_model_base_url") or None,
-            max_tokens=int(platform.get("default_max_tokens", 8000)),
-            config_id=None,
-        )
+
+        # Skip platform config if no API key is set — fall through to env vars
+        if not api_key.strip():
+            logger.warning("Platform default model has no API key — falling back to env vars")
+        else:
+            return ResolvedModel(
+                provider=platform.get("default_model_provider", "anthropic"),
+                model_id=platform["default_model_id"],
+                api_key=api_key,
+                base_url=platform.get("default_model_base_url") or None,
+                max_tokens=int(platform.get("default_max_tokens", 8000)),
+                config_id=None,
+            )
 
     # ── 5: env vars (existing behaviour, kept for zero-config dev) ────────────
     from config import settings

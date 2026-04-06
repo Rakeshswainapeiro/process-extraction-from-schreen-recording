@@ -184,11 +184,22 @@
       <a href="/admin/logs" class="nav-item {% if active_page == 'logs' %}active{% endif %}">
         <span class="icon">📋</span> Audit Logs
       </a>
-      <div class="nav-section">App</div>
-      <a href="/dashboard" class="nav-item">
-        <span class="icon">🏠</span> Back to App
-      </a>
     </nav>
+    <div style="padding: 12px 16px; border-top: 1px solid rgba(255,255,255,.1);">
+      <a href="/dashboard" style="
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+        padding: 9px 14px; background: #4338ca; color: #fff;
+        border-radius: 8px; font-size: 13px; font-weight: 600;
+        text-decoration: none; transition: background .15s; width: 100%;"
+        onmouseover="this.style.background='#3730a3'"
+        onmouseout="this.style.background='#4338ca'">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        Switch to Dashboard
+      </a>
+    </div>
     <div class="sidebar-footer">
       <div class="user-info">Logged in as<br><strong>{{ user.username }}</strong></div>
       <a href="/logout" class="btn-logout">Logout</a>

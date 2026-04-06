@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     REPORTS_DIR: str = os.path.join(DATA_DIR, "reports")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
 
+    # Stripe — https://dashboard.stripe.com/apikeys
+    STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
+    STRIPE_PUBLISHABLE_KEY: str = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
+    # Stripe webhook signing secret — https://dashboard.stripe.com/webhooks
+    STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+    # Public base URL used for Stripe redirect URLs
+    APP_BASE_URL: str = os.getenv("APP_BASE_URL", "http://localhost:8000")
+
     class Config:
         env_file = ".env"
 

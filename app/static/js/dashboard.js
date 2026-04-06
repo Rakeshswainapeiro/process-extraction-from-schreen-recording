@@ -132,7 +132,10 @@ async function stopRecording() {
             setTimeout(() => { window.location.href = `/report/${result.recording_id}`; }, 1000);
         } else {
             updateRecordingUI('idle');
-            showToast('Recording stopped. Analysis may have failed.', 'error');
+            const errMsg = result && result.error
+                ? 'Analysis failed: ' + result.error
+                : 'Recording stopped. Analysis failed — please try again.';
+            showToast(errMsg, 'error');
         }
     } catch (err) {
         clearInterval(stepInterval);
