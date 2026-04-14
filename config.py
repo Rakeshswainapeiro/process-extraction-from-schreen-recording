@@ -20,6 +20,15 @@ class Settings(BaseSettings):
     REPORTS_DIR: str = os.path.join(DATA_DIR, "reports")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
 
+    # Default admin user (created on first startup)
+    DEFAULT_ADMIN_USERNAME: str = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
+    DEFAULT_ADMIN_EMAIL: str = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@example.com")
+    DEFAULT_ADMIN_PASSWORD: str = os.getenv("DEFAULT_ADMIN_PASSWORD", "Admin@2024")
+    DEFAULT_ADMIN_FULLNAME: str = os.getenv("DEFAULT_ADMIN_FULLNAME", "System Administrator")
+
+    # Set to "false" in production to skip seeding demo/test users
+    SEED_TEST_USERS: bool = os.getenv("SEED_TEST_USERS", "true").lower() == "true"
+
     # Stripe — https://dashboard.stripe.com/apikeys
     STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
     STRIPE_PUBLISHABLE_KEY: str = os.getenv("STRIPE_PUBLISHABLE_KEY", "")

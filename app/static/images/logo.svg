@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4F46E5"/>
+      <stop offset="100%" style="stop-color:#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="screenGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#E0E7FF;stop-opacity:0.95"/>
+      <stop offset="100%" style="stop-color:#C7D2FE;stop-opacity:0.85"/>
+    </linearGradient>
+    <linearGradient id="arrowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#34D399"/>
+      <stop offset="100%" style="stop-color:#10B981"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="512" height="512" rx="96" fill="url(#bgGrad)"/>
+
+  <!-- Monitor screen body -->
+  <rect x="96" y="72" width="320" height="220" rx="18" fill="url(#screenGrad)"/>
+
+  <!-- Screen inner (dark area representing recording) -->
+  <rect x="112" y="88" width="288" height="188" rx="10" fill="#312E81" opacity="0.85"/>
+
+  <!-- Play/record indicator on screen -->
+  <circle cx="156" cy="118" r="10" fill="#EF4444" opacity="0.9"/>
+  <text x="172" y="123" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#EF4444" opacity="0.9">REC</text>
+
+  <!-- Activity lines on screen (representing screen activity being recorded) -->
+  <line x1="140" y1="155" x2="220" y2="155" stroke="#818CF8" stroke-width="4" stroke-linecap="round" opacity="0.7"/>
+  <line x1="140" y1="175" x2="280" y2="175" stroke="#818CF8" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
+  <line x1="140" y1="195" x2="250" y2="195" stroke="#818CF8" stroke-width="4" stroke-linecap="round" opacity="0.4"/>
+  <rect x="300" y="145" width="80" height="60" rx="6" stroke="#818CF8" stroke-width="2" fill="none" opacity="0.5"/>
+
+  <!-- Cursor on screen -->
+  <path d="M340 170 L340 195 L350 188 L358 202 L364 199 L356 185 L367 183 Z" fill="white" opacity="0.8"/>
+
+  <!-- Monitor stand -->
+  <rect x="220" y="292" width="72" height="14" rx="4" fill="#C7D2FE" opacity="0.7"/>
+  <rect x="200" y="306" width="112" height="8" rx="4" fill="#C7D2FE" opacity="0.5"/>
+
+  <!-- Extraction arrow (screen to process flow) -->
+  <path d="M256 320 L256 345" stroke="url(#arrowGrad)" stroke-width="5" stroke-linecap="round" stroke-dasharray="8,6"/>
+  <polygon points="256,355 246,340 266,340" fill="#10B981"/>
+
+  <!-- Process flow nodes (extracted process) -->
+  <!-- Node 1 - Start -->
+  <circle cx="160" cy="400" r="22" fill="#34D399" stroke="white" stroke-width="3"/>
+  <text x="160" y="406" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white">1</text>
+
+  <!-- Connector 1->2 -->
+  <line x1="182" y1="400" x2="234" y2="400" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <polygon points="232,394 242,400 232,406" fill="white"/>
+
+  <!-- Node 2 - Middle -->
+  <circle cx="256" cy="400" r="22" fill="#F59E0B" stroke="white" stroke-width="3"/>
+  <text x="256" y="406" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white">2</text>
+
+  <!-- Connector 2->3 -->
+  <line x1="278" y1="400" x2="330" y2="400" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <polygon points="328,394 338,400 328,406" fill="white"/>
+
+  <!-- Node 3 - End -->
+  <circle cx="352" cy="400" r="22" fill="#3B82F6" stroke="white" stroke-width="3"/>
+  <text x="352" y="406" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white">3</text>
+
+  <!-- Small decorative elements - AI sparkle -->
+  <path d="M420 100 L425 88 L430 100 L442 105 L430 110 L425 122 L420 110 L408 105 Z" fill="#FCD34D" opacity="0.8"/>
+  <path d="M85 360 L88 352 L91 360 L99 363 L91 366 L88 374 L85 366 L77 363 Z" fill="#FCD34D" opacity="0.6"/>
+</svg>

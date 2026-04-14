@@ -11,7 +11,7 @@ from app.routes.usage_routes import router as usage_router
 from app.routes.admin_routes import router as admin_router
 from app.routes.payment_routes import router as payment_router
 from app.routes.auth_routes import get_current_user
-from app.services.auth_service import seed_test_users
+from app.services.auth_service import seed_default_admin, seed_test_users
 from config import settings
 
 app = FastAPI(title=settings.APP_NAME)
@@ -39,6 +39,7 @@ async def startup():
     await init_db()
     await _migrate_existing_schema()
     async with async_session() as db:
+        await seed_default_admin(db)
         await seed_test_users(db)
         await _seed_platform_config(db)
 
@@ -122,28 +123,6 @@ async def _get_user_from_cookie(request: Request):
         return None, db
 
 
-# ── Debug (temporary) ────────────────────────────────────────────────────────
-
-@app.get("/debug/me")
-async def debug_me(request: Request):
-    """Temporary: shows current user's auth state. Remove after debugging."""
-    user, db = await _get_user_from_cookie(request)
-    try:
-        if not user:
-            return {"error": "not authenticated"}
-        return {
-            "id": user.id,
-            "username": user.username,
-            "role": user.role,
-            "is_active": user.is_active,
-            "is_super_admin": user.is_super_admin,
-            "is_super_admin_type": type(user.is_super_admin).__name__,
-            "is_super_admin_bool": bool(user.is_super_admin),
-        }
-    finally:
-        await db.close()
-
-
 # ── Page routes ───────────────────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
@@ -155,6 +134,17 @@ async def login_page(request: Request):
     finally:
         await db.close()
     return templates.TemplateResponse("login.html", {"request": request})
+
+
+@app.get("/register", response_class=HTMLResponse)
+async def register_page(request: Request):
+    user, db = await _get_user_from_cookie(request)
+    try:
+        if user:
+            return RedirectResponse(url="/dashboard", status_code=303)
+    finally:
+        await db.close()
+    return templates.TemplateResponse("register.html", {"request": request})
 
 
 @app.get("/dashboard", response_class=HTMLResponse)

@@ -3,13 +3,29 @@
  * Enhanced with pause/resume, loading steps animation, export support
  */
 
-function showToast(message, type = 'success') {
+function showToast(message, type = 'success', duration = 5000) {
     const container = document.getElementById('toastContainer');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.textContent = message;
+
+    const text = document.createElement('span');
+    text.textContent = message;
+    toast.appendChild(text);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'toast-close';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.onclick = () => toast.remove();
+    toast.appendChild(closeBtn);
+
+    const progress = document.createElement('div');
+    progress.className = 'toast-progress';
+    progress.style.animationDuration = duration + 'ms';
+    toast.appendChild(progress);
+
     container.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
+    setTimeout(() => { if (toast.parentNode) toast.remove(); }, duration);
 }
 
 function updateRecordingUI(state) {

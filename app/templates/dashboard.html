@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Process Extractor Pro</title>
+    <link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg">
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
         /* ===== TOPBAR ===== */
@@ -720,6 +721,12 @@
         @media (max-width: 768px) {
             .topbar {
                 left: 0;
+                padding-left: 64px;
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 96px 16px 16px;
             }
 
             .stats-grid {
@@ -729,20 +736,36 @@
             .preview-grid {
                 grid-template-columns: 1fr;
             }
+
+            .recording-input-row {
+                flex-direction: column;
+            }
+
+            .topbar-date {
+                display: none;
+            }
+
+            .topbar-right {
+                gap: 8px;
+            }
         }
     </style>
 </head>
 
 <body>
     <div class="app-layout">
+        <!-- Hamburger Menu (mobile) -->
+        <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Toggle menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+        </button>
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
         <!-- Sidebar -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="sidebar-brand">
-                <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
-                    <rect width="48" height="48" rx="12" fill="#818CF8" />
-                    <path d="M14 24L20 30L34 16" stroke="white" stroke-width="3" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                </svg>
+                <img src="/static/images/favicon.svg" alt="Logo" width="32" height="32" style="border-radius:6px;">
                 <div>
                     <h2 style="font-size:14px; font-weight:700;">Process Extractor</h2>
                     <p style="font-size:11px; color:var(--gray-400); margin-top:1px;">Pro</p>
@@ -1005,6 +1028,18 @@
                     </div>
                 </div>
 
+                <!-- Filter Bar -->
+                <div class="filter-bar" id="filterBar" style="display:none;">
+                    <input type="text" class="search-input" id="searchRecordings" placeholder="Search recordings..." oninput="filterRecordings()">
+                    <select id="filterStatus" onchange="filterRecordings()">
+                        <option value="">All Statuses</option>
+                        <option value="completed">Completed</option>
+                        <option value="processing">Processing</option>
+                        <option value="recording">Recording</option>
+                        <option value="failed">Failed</option>
+                    </select>
+                </div>
+
                 <!-- Hidden stub required by dashboard.js -->
                 <ul id="recordingsList" style="display:none;"></ul>
 
@@ -1026,14 +1061,18 @@
                         <div id="paginationControls" class="pagination-controls"></div>
                     </div>
                     <div class="empty-state" id="emptyState">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="1.5">
-                            <circle cx="12" cy="12" r="10" />
-                            <line x1="12" y1="8" x2="12" y2="12" />
-                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="var(--primary-light)" stroke-width="1.2">
+                            <rect x="2" y="3" width="20" height="14" rx="2"/>
+                            <line x1="8" y1="21" x2="16" y2="21"/>
+                            <line x1="12" y1="17" x2="12" y2="21"/>
+                            <circle cx="12" cy="10" r="3" stroke="var(--primary)" stroke-width="1.5"/>
                         </svg>
-                        <p>No recordings yet</p>
-                        <span>Start your first screen recording above to get started.</span>
+                        <h3>No recordings yet</h3>
+                        <p>Record your screen to let AI extract business processes, generate SOPs, and find automation opportunities.</p>
+                        <button class="btn btn-primary" onclick="document.getElementById('recordingTitle').focus()" style="border-radius:10px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+                            Start Your First Recording
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1390,6 +1429,14 @@
         function confirmLogout(e) { e.preventDefault(); const m = document.getElementById('logoutModal'); m.style.display = 'flex'; }
         function closeLogoutModal() { document.getElementById('logoutModal').style.display = 'none'; }
         document.getElementById('logoutModal').addEventListener('click', function (e) { if (e.target === this) closeLogoutModal(); });
+
+        // Sidebar toggle for mobile
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        }
     </script>
 
     <!-- Usage Meter + Model Switcher -->
@@ -1491,6 +1538,44 @@
         // Init
         loadUsageMeter();
         loadModelSwitcher();
+    </script>
+
+    <!-- Recording filter -->
+    <script>
+    function filterRecordings() {
+        const search = (document.getElementById('searchRecordings').value || '').toLowerCase();
+        const status = document.getElementById('filterStatus').value;
+        const rows = document.querySelectorAll('#recordingsTbody tr');
+        rows.forEach(row => {
+            const title = (row.querySelector('.rec-name')?.textContent || '').toLowerCase();
+            const badge = row.querySelector('.badge-v2');
+            const rowStatus = badge ? badge.className.replace('badge-v2','').trim().split(' ')[0] : '';
+            const matchSearch = !search || title.includes(search);
+            const matchStatus = !status || rowStatus === status;
+            row.style.display = (matchSearch && matchStatus) ? '' : 'none';
+        });
+    }
+
+    // Show filter bar when recordings exist
+    const _origLoad = window.loadRecordings;
+    if (typeof _origLoad === 'function') {
+        window.loadRecordings = async function() {
+            await _origLoad.apply(this, arguments);
+            const tbody = document.getElementById('recordingsTbody');
+            if (tbody && tbody.children.length > 0) {
+                document.getElementById('filterBar').style.display = 'flex';
+            }
+        };
+    }
+    // Also show on DOMContentLoaded if table already has rows
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            const tbody = document.getElementById('recordingsTbody');
+            if (tbody && tbody.children.length > 0) {
+                document.getElementById('filterBar').style.display = 'flex';
+            }
+        }, 1500);
+    });
     </script>
 </body>
 
